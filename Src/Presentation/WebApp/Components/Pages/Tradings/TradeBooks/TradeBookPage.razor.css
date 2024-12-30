@@ -1,0 +1,69 @@
+﻿.tabs {
+    font-size: 21px;
+    color: #ffffff;
+    text-decoration: none;
+}
+.active-tab {
+    background-color: #ffffff;
+    color: #1f4963;
+    border-radius: 10px 10px 0 0;
+}
+
+
+.ready-to-sell {
+    animation: blink-animation 10s linear infinite;
+    padding: 5px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.svg-action{
+    height:25px;
+}
+
+@keyframes blink-animation {
+    0% {
+        color: darkslateblue;
+        font-size: 15px;
+        background-color: red;
+    }
+    30% {
+        color:white;
+        font-weight: 500;
+        font-size: 13px;
+        background-color: #1f4963;
+    }
+
+    55% {
+        background-color: red;
+        font-weight: 600;
+        font-size: 15px;
+        color: white;
+    }
+
+    80% {
+        background-color: green;
+        font-weight: 700;
+        font-size: 14px;
+        color:white;
+    }
+    100% {
+        background-color: #1f4963;
+        color: white;
+        font-size: 15px;
+    }
+
+}
+.toggle-btn {
+    background-color: #1f4963;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 10px;
+    font-weight:700;
+}
+.toggle-btn-active {
+    background-color: red !important;
+    color: white !important;
+}

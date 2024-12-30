@@ -1,0 +1,99 @@
+﻿@page "/hjhu"
+@using Hangfire
+@using Microsoft.AspNetCore.SignalR.Client
+@using ShareMarket.Core.Interfaces.Hubs
+
+@attribute [Authorize]
+
+@inject NavigationManager Navigation
+@inject INotificationHub Hub;
+
+<PageTitle>Hangfire Job Notifications</PageTitle>
+
+<div class="row form">
+    @{
+        var scheduledJobs = JobStorage.Current.GetMonitoringApi().GetStatistics();
+    }    
+    <div class="col-3"><strong> Hangfire Job Status  </strong></div>
+
+    <div class="col-3">Enqueued :  <strong> @scheduledJobs.Enqueued  </strong></div>
+    <div class="col-6">Processing : <strong> @scheduledJobs.Processing</strong></div>
+</div>
+<hr />
+<div class="row">
+    <div class="col-3 p-1">
+        <div class="form" style="height:25vh">
+            <div class="heading"> Calculations Messages </div>
+            <div class="ps-2">@CalculationsMessages.LastOrDefault()</div>
+        </div>
+    </div>
+    <div class="col-3 p-1">
+        <div class="form" style="height:25vh">
+            <div class="heading"> Equity Pandit Messages</div>
+            <div class="ps-2">@EquityPanditMessages.LastOrDefault()</div>
+        </div>
+    </div>
+    <div class="col-3 p-1">
+        <div class="form" style="height:25vh">
+            <div class="heading">Groww Messages </div>
+            <div class="ps-2">@GrowwMessages.LastOrDefault()</div>
+        </div>
+    </div>
+    <div class="col-3 p-1">
+        <div class="form" style="height:25vh">
+            <div class="heading">Screener Messages </div>
+            <div class="ps-2">@ScreenerMessages.LastOrDefault()</div>
+    </div>
+    </div>
+</div>
+
+
+@code {
+    private HubConnection? hubConnection;
+    private List<string> CalculationsMessages = [];
+    private List<string> EquityPanditMessages = [];
+    private List<string> GrowwMessages = [];
+    private List<string> ScreenerMessages = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/notifications-hub"))
+            .Build();
+
+        hubConnection.On<string, string>("SendMessage", (user, message) =>
+        {
+            var encodedMsg = $"{user}: {message}";
+            CalculationsMessages.Add(encodedMsg);
+            EquityPanditMessages.Add(encodedMsg);
+            InvokeAsync(StateHasChanged);
+        });
+        hubConnection.On<string, string>("Calculations", (user, message) =>
+        {
+            var encodedMsg = $"{user}: {message}";
+            CalculationsMessages.Add(encodedMsg);
+            InvokeAsync(StateHasChanged);
+        });
+        hubConnection.On<string, string>("EquityPandit", (user, message) =>
+        {
+            var encodedMsg = $"{user}: {message}";
+            EquityPanditMessages.Add(encodedMsg);
+            InvokeAsync(StateHasChanged);
+        });
+        hubConnection.On<string, string>("Groww", (user, message) =>
+        {
+            var encodedMsg = $"{user}: {message}";
+            GrowwMessages.Add(encodedMsg);
+            InvokeAsync(StateHasChanged);
+        });
+        hubConnection.On<string, string>("Screener", (user, message) =>
+        {
+            var encodedMsg = $"{user}: {message}";
+            ScreenerMessages.Add(encodedMsg);
+            InvokeAsync(StateHasChanged);
+        });
+        await hubConnection.StartAsync();
+
+
+    }
+}

@@ -1,0 +1,77 @@
+﻿@using Blazorise;
+
+@if(RowCount > 0)
+{
+    <label>
+        <strong>@from</strong> - 
+        <strong>@to</strong> of 
+        <strong>@RowCount</strong> &nbsp;
+    </label>
+    @if (!NextDisabled || !PrevDisable)
+    {
+        <button class="paging" @onclick="PrevPage" title="Newer" disabled=@PrevDisable>
+            <Icon Name="IconName.ChevronLeft" Class="icon" />
+        </button>
+        <button class="paging" @onclick="NextPage" title="Newer" disabled=@NextDisabled>
+            <Icon Name="IconName.ChevronRight" Class="icon" />
+        </button>
+    }
+}
+@code {
+
+    [Parameter]
+    public int Skip { get; set; }
+
+    [Parameter]
+    public long RowCount { get; set; }
+
+    [Parameter]
+    public int ItemPerPage { get; set; } = 50;
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> NextPage { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> PrevPage { get; set; }
+
+    bool NextDisabled = true;
+    bool PrevDisable = true;
+    long from = 0;
+    long to = 0;
+
+    protected override Task OnParametersSetAsync()
+    {
+        if (RowCount == 0)
+        {
+            NextDisabled = PrevDisable = true;
+            from = to = 0;
+        }
+        else
+        {
+            var _skip = Skip;
+            var _total = RowCount;
+            from = 1 + Skip;
+            if (RowCount < ItemPerPage)
+                to = Skip + RowCount;
+            else
+                to = Skip + ItemPerPage;
+
+            long take = 0;
+            if (_skip + ItemPerPage >= _total)
+            {
+                NextDisabled = true;
+                take = _total;
+            }
+            else
+            {
+                NextDisabled = false;
+                take = ItemPerPage + _skip;
+            }
+            if (_skip > 0)
+                PrevDisable = false;
+            else
+                PrevDisable = true;
+        }
+        return base.OnParametersSetAsync();
+    }
+}

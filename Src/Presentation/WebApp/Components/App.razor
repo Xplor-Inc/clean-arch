@@ -1,0 +1,39 @@
+﻿@inject IConfigurationRoot Config;
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link href="/Images/icon.jpeg" rel="icon"  />
+    <link href="/css/navmenu.css?v=@Config.GetSection("Version").Value" rel="stylesheet" />
+    <link href="/css/site.css?v=@Config.GetSection("Version").Value" rel="stylesheet" />
+    <link href="/css/app.css?v=@Config.GetSection("Version").Value" rel="stylesheet" />
+    <link href="/css/bootstrap/bootstrap.min.css?v=@Config.GetSection("Version").Value" rel="stylesheet" />
+    <link href="/css/fm.css?v=@Config.GetSection("Version").Value" rel="stylesheet" />
+    <link href="/css/loader.css?v=@Config.GetSection("Version").Value" rel="stylesheet" />
+    <link href="ShareMarket.WebApp.styles.css?v=@Config.GetSection("Version").Value" rel="stylesheet" />
+    <link rel="stylesheet" href="_content/Blazorise/blazorise.css" />
+    <link rel="stylesheet" href="_content/Blazorise.Bootstrap/blazorise.bootstrap.css" />
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css" />
+    <link rel="stylesheet" href="https://site-assets.fontawesome.com/releases/v6.5.1/css/all.css" />
+    <HeadOutlet @rendermode="RenderModeForPage" />
+</head>
+
+<body>
+    <Routes @rendermode="RenderModeForPage" />
+    <script src="_framework/blazor.web.js"></script>
+</body>
+
+</html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    private IComponentRenderMode? RenderModeForPage => HttpContext.Request.Path.StartsWithSegments("/Account")
+        ? null
+        : InteractiveServer;
+}

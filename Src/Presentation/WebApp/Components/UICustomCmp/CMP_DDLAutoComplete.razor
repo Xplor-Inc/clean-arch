@@ -1,0 +1,81 @@
+﻿
+
+
+<div class="autocomplete">
+    <input @bind-value="selectedValue" @oninput="HandleInput" placeholder="Enter search text" class="form-control" />
+    @if (data is not null && showAutoComplete == true)
+    {
+        <ul class="options">
+            @if (filteredData.Any())
+            {
+                @foreach (var item in filteredData)
+                {
+                    <li class="option" @onclick=@(() => onItemSelect(item.Key,item.Value))>
+                        <span class="option-text">@item.Value</span>
+                    </li>
+                }
+            }
+            else
+            {
+                <li class="disabled option">No results</li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public List<SelectListItem> data { get; set; } = [];
+
+    [Parameter]
+    public bool clearSearchText { get; set; }
+
+    [Parameter]
+    public EventCallback<SelectListItem> OnListItemSelect { get; set; }
+
+
+    public List<SelectListItem> filteredData { get; set; } = [];
+    string? filter;
+    public string selectedValue { get; set; } = "";
+    public bool showAutoComplete { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (clearSearchText)
+        {
+            selectedValue = "";
+        }
+        base.OnParametersSet();
+    }
+
+    void HandleInput(ChangeEventArgs e)
+    {
+
+        filter = e.Value?.ToString();
+        if (string.IsNullOrEmpty(filter))
+        {
+            selectedValue = "";
+            showAutoComplete = false;
+            clearSearchText = true;
+            return;
+        }
+        filteredData = data.Where(x => x.Value.ToLower().Contains(filter.ToLower())).ToList();
+        showAutoComplete = true;
+    }
+
+    void onItemSelect(string key, string value)
+    {
+        var result = data.FirstOrDefault(x => x.Key == key);
+        selectedValue = value;
+        showAutoComplete = false;
+        clearSearchText = false;
+        OnListItemSelect.InvokeAsync(result);
+    }
+
+    //private void focusout()
+    //{
+    //    if (data.FirstOrDefault(x => x.Value == selectedValue) == null)
+    //        selectedValue = "";
+    //    showAutoComplete = false;
+    //}
+}

@@ -1,0 +1,44 @@
+﻿
+<input type="@FieldType" @bind-value="FieldValue" @onfocusout="OnFocusOut"
+       id="@string.Concat("txt",FieldName)" @attributes="InputAttributes" class="form-control">
+
+
+@code {
+    [Parameter]
+    public required string FieldType { get; set; }
+    [Parameter]
+    public required string FieldName { get; set; }
+    [Parameter]
+    public required string FieldValue { get; set; }
+
+    [Parameter]
+
+    public EventCallback<string> Field_OnFocusOut { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object> InputAttributes { get; set; } = [];
+
+
+    public Dictionary<string, string> FilteredValidationMesssages { get; set; } = new();
+    protected override void OnInitialized()
+    {
+        InputAttributes = new Dictionary<string, object>()
+                {
+                   { "placeholder", $"Enter value for {FieldName}" },
+                };
+        base.OnInitialized();
+    }
+    protected override void OnParametersSet()
+    {
+
+        base.OnParametersSet();
+    }
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+    }
+    private void OnFocusOut()
+    {
+        Field_OnFocusOut.InvokeAsync(FieldValue);
+    }
+}

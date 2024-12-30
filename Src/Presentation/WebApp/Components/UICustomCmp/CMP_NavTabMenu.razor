@@ -1,0 +1,26 @@
+﻿<ul class="nav nav-tabs card-header-tabs justify-content-between">
+    @foreach (var item in lstItems.Where(x => x.Key != "-1"))
+    {
+        <li class="nav-item mb-1 @(item.Selected ? "nav-selected" : "")">
+            <a class="nav-link  @(item.Selected==true ? "" : "")" @onclick="()=>Nav_Tab_Click.InvokeAsync(item.Key)" aria-current="true">
+                @item.Value @if (BindCount)
+                {
+                    <strong>(@item.Count)</strong>
+                }
+                </a>
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter]
+    public List<SelectListItem> lstItems { get; set; } = [];
+
+    [Parameter]
+    public bool BindCount { get; set; } = false;
+
+
+    [Parameter]
+    public EventCallback<string> Nav_Tab_Click { get; set; }
+
+}

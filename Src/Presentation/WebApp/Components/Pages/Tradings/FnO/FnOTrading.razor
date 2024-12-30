@@ -1,0 +1,124 @@
+﻿@page "/investment/optiontrading/"
+
+
+@using Blazorise;
+@using Blazorise.Components;
+
+
+<PageTitle>Option Trading</PageTitle>
+
+<div class="form">
+    <div class="heading flex">
+        <span>
+            Option Trading
+        </span>
+    </div>
+
+     <div class="flex bg-blue w-auto justify-content-start">
+        <div class="flex justify-content-start bg-white m-1 p-1" style="border-radius:5px;">
+            <Strong>Sources: &nbsp;</Strong>
+            <span role="button" class="ps-2 pe-2 me-2 w-auto bg-tags d-inline @(Filters.ActiveRef == null ? "bg-blue":"")"
+                  @onclick="()=>LoadData(null, Filters.ActiveIndex, Filters.ContractType)">All</span>
+            @foreach (var item in References)
+            {
+                <span role="button" class="ps-2 pe-2 me-2 w-auto bg-tags d-inline @(item == Filters.ActiveRef ? "bg-blue":"")"
+                      @onclick="()=>LoadData(item ,Filters.ActiveIndex, Filters.ContractType)">@item</span>
+            }
+        </div>
+        <div class="flex justify-content-start bg-white m-1 p-1" style="border-radius:5px;">
+            <Strong>Script:&nbsp;</Strong>
+            <span role="button" class="ps-2 pe-2 me-2 w-auto bg-tags d-inline @(Filters.ActiveRef == null ? "bg-blue":"")"
+                  @onclick="()=>LoadData(Filters.ActiveRef, null, Filters.ContractType)">All</span>
+            @foreach (var item in Indexes)
+            {
+                <span role="button" class="ps-2 pe-2 me-2 w-auto bg-tags d-inline @(item == Filters.ActiveIndex ? "bg-blue":"")"
+                      @onclick="()=>LoadData(Filters.ActiveRef, item, Filters.ContractType)">@item</span>
+            }
+        </div>
+    </div> 
+
+    <div class="flex">
+    </div>
+
+
+    @for (int i = 0; i < Days.Count; i++)
+    {
+        var day = Days[i];
+        var visible = day == Filters.ActiveDay;
+        var trades = Tradings.FindAll(g => g.TradeDate == day);
+
+        <Accordion>
+            <AccordionItem @bind-Visible="visible">
+                <AccordionHeader Class="p-0 m-0 bg-blue">
+                    <Heading AlternativeTagName="div" Class="mb-0">
+                        <AccordionToggle Clicked="()=>ToggleAccordian(day)" Class="@(day == Filters.ActiveDay ? "p-2 accordion-button ":"p-2 accordion-button collapsed")">
+                            @day.ToString("ddd, dd-MMM-yy")
+                            <span style="position:absolute; right:35px;">
+                            <span class="text-white">
+                                [@trades.Count Trades]
+                            </span>
+                            </span>
+                           @*  <span style="position:absolute; right:35px; color:@(trades.Sum(s => s.NetPL) > 0 ? "greenyellow" : "red")">
+                                @trades.Sum(s => s.NetPL) (@((trades.Sum(s => s.NetPL) / trades.Sum(s => s.GetBuyAmount()) * 100).ToFixed())%)
+                               
+                            </span> *@
+                        </AccordionToggle>
+                    </Heading>
+                </AccordionHeader>
+                <AccordionBody>
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Contract</th>
+                                    <th>Sell Date</th>
+                                    <th>Quantity</th>
+                                    <th>Ref</th>
+                                    <th>Buy Rate</th>
+                                    <th>Sell Rate</th>
+                                    <th>Sell Action</th>
+                                    <th>With SL</th>
+                                    <th>Returns</th>
+                                    <th>Brokerage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int t = 0; t < trades.Count; t++)
+                                {
+                                    var row = trades[t];
+                                    <tr>
+                                        <td class="analysis">
+                                            @row.DisplayName
+                                            @* @if (!string.IsNullOrEmpty(row.Analysis))
+                                            {
+                                                <span class="tooltiptext">@row.Analysis</span>
+                                            } *@
+                                        </td>
+                                        <td>@row.TradeDate.ToString("dd MMM")</td>
+                                        <td>@row.Qty</td>
+                                        <td>@row.Qty</td>
+                                        <td>@row.CreatedAt</td>
+                                        @* <td>@row.SellRate.ToCString()</td> *@
+                                        <td>
+                                            <span class="bg-tags" style="width:fit-content; color:@(row.BuySell == "B" ? ColorNames.Green : ColorNames.Red);
+                                                background-color:@(row.BuySell == "B" ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                                                @row.BuySell.Replace("B", "Buy").Replace("S", "Sell")
+                                            </span>
+                                        </td>
+                                        @* <td> <span class="bg-tags" style="width:45px; background-color:@(row.HasSL ? "green":"red")">@(row.HasSL ? "Yes" : "No")</span> </td>
+                                        <th style="color:@RowColor(row)">
+                                            @row.NetPL.ToCString(0)
+                                            (@((row.NetPL / row.GetBuyAmount() * 100).ToFixed())%)
+                                        </th> *@
+                                        <td>@((row.AvgFillPrice / 100).ToCString())</td>
+                                    </tr>
+                                }
+
+                            </tbody>
+                        </table>
+                    </div>
+                </AccordionBody>
+            </AccordionItem>
+        </Accordion>
+    }
+</div>

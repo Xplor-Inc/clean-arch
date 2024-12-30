@@ -1,0 +1,27 @@
+﻿@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <div class="popup form nt-pop">
+        <div class="closeX" @onclick="@(()=>Message=null)">X</div>
+        @Message
+    </div>
+}
+
+
+@code {
+
+    [Parameter]
+    public string? Message { get; set; }
+}
+
+<style>
+    .nt-pop {
+        right: 25px;
+        bottom: 0;
+        width: auto;
+        left: auto;
+        padding: 5px 20px;
+        top: auto;
+        background-color: #1f4963;
+        color: white;
+    }
+</style>

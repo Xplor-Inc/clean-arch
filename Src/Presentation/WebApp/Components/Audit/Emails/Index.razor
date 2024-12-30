@@ -1,0 +1,250 @@
+﻿@page "/audit/email-logs";
+
+@using Blazorise.Components;
+@using Blazorise;
+
+@attribute [Authorize]
+@inject NavigationManager NavManager
+@inject IJSRuntime JsRuntime
+@inject IRepositoryConductor<EmailAuditLog> AuditRepo;
+
+<PageTitle>Email Audit Report</PageTitle>
+<div class="form">
+    <div class="heading">Email Audit Report</div>
+    <div class="row">
+        <div class="col-md-3">
+            <label for="usr">From Date</label>
+            <DateEdit Max="@DateTimeOffset.Now.ToIst()" Placeholder="Select From Date" TValue="DateTimeOffset?"
+                      @bind-Date=Search.FromDate>
+            </DateEdit>
+        </div>
+        <div class="col-md-3">
+            <label for="usr">To Date</label>
+            <DateEdit Max="@DateTimeOffset.Now.ToIst()" Placeholder="Select To Date" TValue="DateTimeOffset?"
+                      @bind-Date=Search.ToDate>
+            </DateEdit>
+        </div>
+        <div class="col-md-3">
+            <label>Event Name</label>
+            <InputSelect class="form-control" @bind-Value="@Search.EventName">
+                <option value="All Events">All Events</option>
+            </InputSelect>
+        </div>
+
+        <div class="col-md-3 col-6 button-pt">
+            <button type="submit" class="btn btn-primary" @onclick="()=>SearchData(0)">
+                Search
+            </button>
+            @if (Models.Count > 0)
+            {
+                <button type="submit" class="btn btn-success ms-4" @onclick="DownloadReport">
+                    <Icon Name="IconName.Download" />
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="text-end">
+        <Paging ItemPerPage="@PageSize" RowCount="@RowCount" Skip="@Skip" PrevPage="@PrevPage" NextPage="@NextPage" />
+    </div>
+
+    <div class="table-responsive">
+        <table class="table">
+            <tr>
+                <th>Sr.</th>
+                <th>Subject</th>
+                <th>To Emails</th>
+                <th>CCEmails</th>
+                <th>Attachments</th>
+                <th>Event Triggered At</th>
+            </tr>
+            <tbody>
+                @for (int i = 0; i < Models.Count; i++)
+                {
+                    var row = Models[i];
+                    <tr>
+                        <td style="font-weight: @(row.Success ? "400" : "700"); color:@(row.Success ? "initial" : "red")">
+                            <a role="button" @onclick="()=>GeneratePopup(row)">
+                                @(Skip + i + 1)
+                            </a>
+                        </td>
+                        <td>@row.Subject</td>
+                        <td>@row.ToEmails</td>
+                        <td>@row.CCEmails</td>
+                        <td>@row.Attachments</td>
+                        <td>@($"{row.CreatedOn:dd-MM-yy,HH:mm:ss}")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="text-end">
+        <Paging ItemPerPage="@PageSize" RowCount="@RowCount" Skip="@Skip" PrevPage="@PrevPage" NextPage="@NextPage" />
+    </div>
+</div>
+
+@if (Email != null)
+{
+    <div class="form popup">
+        <span class="closeX bg-white" @onclick="ClosePopupWindow">X</span>
+        <div class="p-3">
+            <table>
+                <tr>
+                    <td>
+                        <table>
+                            <tr>
+                                <th>Sent At:</th>
+                                <td>@($"{Email.CreatedOn:dddd, dd-MMM-yyyy hh:mm:ss tt}")
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>To:</th>
+                                <td>
+                                    <div>
+                                        @foreach (var item in Email.ToEmails.Split(','))
+                                        {
+                                            <span class="m-2 ms-0 p-1 border">@item</span>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+
+                            @if (!string.IsNullOrEmpty(Email.CCEmails))
+                            {
+                                <tr>
+                                    <th>CC:</th>
+                                    <td>
+                                        <div>
+                                            @foreach (var item in Email.CCEmails.Split(','))
+                                            {
+                                                <span class="m-2 p-1 border">@item</span>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+
+                            <tr>
+                                <th>Email Sent:</th>
+                                <td class="m-2 p-1 @(Email.Success ? "text-success" : "text-danger")">
+                                    @(Email.Success ? "Yes" : "No")
+                                </td>
+                            </tr>
+                            @if (!Email.Success && !string.IsNullOrEmpty(Email.Error))
+                            {
+                                <tr>
+                                    <th class="m-2 p-1">Error</th>
+                                    <td class="text-danger">
+                                        @((MarkupString)Email.Error)
+                                    </td>
+                                </tr>
+
+                            }
+                        </table>
+                    </td>
+                </tr>
+            </table>
+
+            <div class="pt-3">@((MarkupString)Email.MessageBody)</div>
+        </div>
+    </div>
+    <div class="overlay"></div>
+}
+
+@code {
+    public List<EmailAuditLog> Models { get; set; } = new List<EmailAuditLog>();
+    public long RowCount { get; set; }
+    public int Skip { get; set; }
+    public int PageSize { get; set; } = 25;
+    public SearchDto Search { get; set; } = new SearchDto { };
+
+    public EmailAuditLog? Email { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SearchData(0);
+    }
+    private void ClosePopupWindow()
+    {
+        Email = null;
+    }
+    private void GeneratePopup(EmailAuditLog log)
+    {
+        Email = log;
+    }
+    private async Task SearchData(int skip)
+    {
+        Expression<Func<EmailAuditLog, bool>> filter = e => e.DeletedOn == null;
+
+        if (Search.FromDate.HasValue)
+            filter = filter.AndAlso(e => e.CreatedOn >= Search.FromDate);
+        if (Search.ToDate.HasValue)
+            filter = filter.AndAlso(e => e.CreatedOn <= Search.ToDate);
+        // if (!string.IsNullOrEmpty(Search.EventName))
+        //     filter = filter.AndAlso(e => e.CreatedOn >= Search.FromDate);
+
+        var result = await AuditRepo.FindAll(filter, take: PageSize, skip: Skip, asNoTracking: true).ResultObject.ToListAsync();
+        if (result.Count > 0)
+        {
+            Models = result;
+            RowCount = await AuditRepo.FindAll(filter, asNoTracking: true).ResultObject.CountAsync();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        Skip += PageSize;
+        await SearchData(Skip);
+    }
+
+    private async void PrevPage()
+    {
+        Skip -= PageSize;
+        await SearchData(Skip);
+    }
+
+    public class SearchDto
+    {
+        public DateTimeOffset? FromDate { get; set; }
+        public DateTimeOffset? ToDate { get; set; }
+        public string EventName { get; set; } = "All Events";
+    }
+
+    public class EmailAddressModel
+    {
+        public List<string>? To { get; set; }
+        public List<string>? CC { get; set; }
+        public List<string>? BCC { get; set; }
+    }
+    protected async void DownloadReport()
+    {
+        var q = $"?take={1000}&skip={0}";
+
+        if (Search.EventName != "All Events")
+            q += $"&eventName={Search.EventName}";
+        if (Search.FromDate is not null)
+            q += $"&fromDate={Search.FromDate:yyyy-MMM-dd}";
+        if (Search.ToDate is not null)
+            q += $"&toDate={Search.ToDate:yyyy-MMM-dd}";
+
+        HttpClient client = new HttpClient { BaseAddress = new Uri(NavManager.BaseUri) };
+        var response = await client.GetAsync($"/api/gitlab/email-alert-report{q}");
+        if (response.IsSuccessStatusCode)
+        {
+            try
+            {
+                var Result = await response.Content.ReadAsAsync<Result<List<EmailAuditLog>>>();
+                if (!Result.HasErrors)
+                {
+                    var audits = Result.ResultObject;
+                    await JsRuntime.InvokeVoidAsync("downloadAuditReportExcel", audits);
+                }
+            }
+            catch (Exception)
+            {
+                var ss = await response.Content.ReadAsStringAsync();
+            }
+        }
+    }
+}

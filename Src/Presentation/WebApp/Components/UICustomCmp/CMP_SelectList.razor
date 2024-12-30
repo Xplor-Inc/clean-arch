@@ -1,0 +1,31 @@
+﻿
+<select class="form-control" @onchange="onSelectionChange" id="@FieldName">
+    @foreach (var item in SelectListItems)
+    {
+        if (item.Selected)
+        {
+            <option selected="selected" value="@item.Key">@item.Value</option>
+        }
+        else
+        {
+            <option value="@item.Key">@item.Value</option>
+        }
+    }
+</select>
+
+@code {
+    [Parameter]
+    public IEnumerable<SelectListItem> SelectListItems { get; set; } = [];
+
+    [Parameter]
+    public required string FieldName { get; set; }
+
+    [Parameter]
+
+    public EventCallback<string> Field_OnSelectionChange { get; set; }
+
+    public void onSelectionChange(ChangeEventArgs args)
+    {
+        Field_OnSelectionChange.InvokeAsync(args.Value?.ToString());
+    }
+}

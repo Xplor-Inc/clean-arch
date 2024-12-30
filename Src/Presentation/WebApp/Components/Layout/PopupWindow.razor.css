@@ -1,0 +1,35 @@
+﻿.popup {
+    position: absolute;
+    top: 15%;
+    width: 80%;
+    left: 10%;
+    z-index: 1032;
+    border-radius: 13px 0px 10px 10px;
+}
+
+.closeX {
+    background: white;
+    color: red;
+    font-size: 16pt;
+    font-weight: 700;
+    position: absolute;
+    cursor: pointer;
+    border-radius: 50%;
+    width: 33px;
+    text-align: center;
+    border: 1px solid red;
+    right: -16px;
+    top: -16px;
+}
+
+.heading {
+    border-bottom: 1px solid rgb(14, 13, 13);
+}
+
+@media (max-width: 768px) {
+    .popup {
+        top: 10%;
+        width: 90%;
+        left: 5%;
+    }
+}

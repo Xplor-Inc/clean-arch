@@ -1,0 +1,179 @@
+
+.icon-menu {
+    font-size: 12pt;
+    vertical-align: bottom
+}
+
+.circle-text {
+    background: #1f4963;
+    padding: 3px;
+    border: 2px solid yellow;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    margin-top: -3px;
+    font-size: 1.25rem;
+    margin-right: -3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.circle-text-list {
+    width: 30px;
+    height: 30px;
+    display: inline-block;
+    padding: 5px;
+    border-radius: 50%;
+    background-color: #1f4963;
+}
+
+.delete {
+    background-color: red !important;
+    color: white !important;
+    display: inline-block;
+    border: 1px solid #1f4963;
+    border-radius: 50%;
+}
+
+.edit {
+    background-color: #ffc107 !important;
+    display: inline-block;
+    border: 1px solid #1f4963;
+    border-radius: 50%;
+    cursor:pointer;
+    color:white;
+}
+.closeX {
+    background-color: black;
+}
+
+.bankPopup svg {
+    vertical-align: top;
+    font-size: 16pt;
+}
+
+.heading {
+    border-bottom: 1px solid rgb(14, 13, 13);
+}
+
+.bankFilter {
+    border-radius: 10px;
+    padding: 5px;
+    cursor: pointer;
+    display: grid;
+    align-content: space-between;
+    height: 75px;
+    color: white;
+}
+
+    .bankFilter.active {
+        background-image: linear-gradient(to right, #81019f, #5a38af, #02cbab);
+        color: white;
+    }
+
+.flex {
+    justify-content: space-between;
+    display: flex;
+    /*width: 100%;*/
+}
+
+.box {
+    border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0;
+    border: 1px solid #1f4963;
+    background-color: #ffffff;
+}
+
+.viewBtns {
+    margin-top: -37px;
+    margin-right: 3rem;
+    float: right;
+}
+
+.amountBox {
+    width: 70px;
+    background: white;
+    border-radius: 2px;
+    text-align: left;
+    margin-left: 2px;
+    margin-top: 2px;
+    padding-left: 3px;
+}
+
+.bg-primary {
+    background-color: #1f4963 !important;
+}
+
+bg-dark {
+    background-color: #210404;
+}
+
+.mobileMenu {
+    display: none;
+    background: #1f4963;
+    margin-top: -8px;
+    padding-bottom: 5px;
+}
+
+@media (min-width: 768px) {
+    .act-box {
+        width: 20%;
+    }
+}
+
+@media (max-width: 768px) {
+    .page {
+        width: 100%;
+    }
+
+    .info-box {
+        margin: 5px 4px;
+        width: 47%;
+    }
+    .chart {
+        width: 98% !important;
+    }
+    .chart-table {
+      
+        width: 97%;
+    }
+  
+    .container,
+    .container-fluid,
+    .container-xxl,
+    .container-xl,
+    .container-lg,
+    .container-md,
+    .container-sm {
+        padding-right: 0.025rem;
+        padding-left: 0.025rem;
+    }
+
+    .mobileMenu {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+    }
+
+    .viewBtns {
+        margin-top: 5px;
+        margin-right: 5px;
+        text-align: right;
+        border-bottom: 1px solid;
+        padding-bottom: 5px;
+        float: none;
+    }
+
+    .truncate {
+        max-width: 92px;
+        width: 92px;
+    }
+
+    html {
+        font-size: 15px;
+    }
+
+    .card-body {
+        padding: 1px !important;
+    }
+}

@@ -1,0 +1,719 @@
+﻿@page "/trading/trade-book/{TabName?}"
+@attribute [Authorize]
+
+@using Blazorise;
+@using Blazorise.Components;
+@using ShareMarket.Core.Conductors.TradeBooks
+@using ShareMarket.Core.Entities.Settings
+@using ShareMarket.Core.Entities.Tradings
+@using ShareMarket.Core.Interfaces.Hubs.SharekhanHub
+@using ShareMarket.Core.Models.Dtos.Trading
+@using ShareMarket.Core.Utilities
+
+@inherits ComponentBaseClass
+
+@implements IAsyncDisposable
+@inject IRepositoryConductor<TradeBook> BookRepo;
+@inject IRepositoryConductor<TradeOrder> BookOrderRepo;
+@inject ITradeBookConductor TradeBookConductor;
+
+
+<NotificationBar Message="@Message" />
+
+<Loader IsLoading=IsLoading />
+<PageTitle>Equity Investment Summary</PageTitle>
+
+<div class="form">
+    <div class="heading flex">
+        <span>Investment Summary</span>
+        @if (Tradings.Count > 0)
+        {
+            <div class="bg-tags fs-6 bg-white scheme m-1 text-secondary">
+                Invested : @SummaryModel.Invested.ToFixedString(0)
+            </div>
+            @if (SummaryModel.Current > 0)
+            {
+                <div class="bg-tags bg-white  fs-6 scheme m-1 @(@SummaryModel.Current > SummaryModel.Invested ? "text-success" :"text-danger")">
+                    Current : @SummaryModel.Current.ToFixedString(0)
+                </div>
+            }
+            @if (SummaryModel.ReleasedPL != 0)
+            {
+                <div class="bg-tags fs-6 bg-white scheme m-1 @(@SummaryModel.ReleasedPL > 0 ? "text-success" :"text-danger")">
+                    Profit : @SummaryModel.ReleasedPL.ToFixedString(0)
+                    <span style="font-size:0.85rem;">
+                        (@SummaryModel.ReleasedPLPerc.ToFixed(1)%)
+                    </span>
+                </div>
+            }
+            @if (SummaryModel.NonReleasedPL != 0)
+            {
+                <div class="bg-tags fs-6 bg-white scheme m-1 @(SummaryModel.NonReleasedPL > 0 ? "text-success" :"text-danger")">
+                    Profit : @SummaryModel.NonReleasedPL.ToFixedString(0)
+                    <span style="font-size:0.85rem;">
+                        (@SummaryModel.NonReleasedPLPerc.ToFixed(1)%)
+                    </span>
+                </div>
+            }
+
+            @if (SummaryModel.DayChangePerc != 0)
+            {
+                <div class="bg-tags fs-6 bg-white scheme m-1 @(SummaryModel.DayChange > 0 ? " text-success" :"text-danger")">
+                    Day Returns : @SummaryModel.DayChange.ToFixedString()
+                    <span style="font-size:0.85rem;">
+                        (@SummaryModel.DayChangePerc.ToFixed(1)%)
+                    </span>
+                </div>
+            }
+        }
+
+        <div class="flex">
+            <div class="bg-tags fs-6 bg-white scheme m-1" title="Add a trade">
+                <Icon role="button" Name="IconName.PlusCircle" Class="text-success" Style="width:20px;padding-top:5px;"
+                      Clicked="()=>{ TradeBookModel = new TradeOrderDto();}" />
+            </div>
+            @* <div class="bg-tags fs-6 bg-white scheme m-1" title="Add new Entity Stock/ETF">
+                <Icon role="button" Name="IconName.Add" Class="text-success" Style="width:20px;padding-top:5px;"
+                      Clicked="()=>{ EquityModel = new Core.Models.Dtos.Equities.EquityStockDto();}" />
+            </div> *@
+            @if (Tradings.Count > 0)
+            {
+                <div class="bg-tags fs-6 bg-white scheme m-1" role="button">
+                    @if (Syncing)
+                    {
+                        <img src="/Images/syncing.gif" @onclick=StopSyncing style="width:20px" alt="Syncing" title="Stop Syncing" />
+                    }
+                    else
+                    {
+                        <Icon Name="IconName.Sync" Class="text-success" Style="width:20px;padding-top:5px;"
+                              Clicked="RefreshCurrentRates" title="Start websocket" />
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (FilterList.Count > 0)
+    {
+        <div class="flex bg-blue w-auto justify-content-start">
+            <div class="flex justify-content-start bg-white m-1 p-1" style="border-radius:5px;">
+                <Strong>TradeTypes: &nbsp;</Strong>
+                <span role="button" class="ps-2 pe-2 me-2 w-auto bg-tags d-inline @(TradeFilter.TradeType == null ? "bg-blue":"")"
+                      @onclick="()=>FilterByTradeType(null)">All</span>
+
+                @foreach (var item in Enum.GetValues<TradeType>())
+                {
+                    string className = "ps-2 pe-2 me-2 w-auto bg-tags d-inline " + (item == TradeFilter.TradeType ? "bg-blue" : "");
+                    <span role="button" class="@className" @onclick="()=>FilterByTradeType(item)">
+                        @item (@FilterList.Count(c => c.TradeType == item))
+                    </span>
+                }
+            </div>
+            <div class="flex justify-content-start bg-white m-1 p-1" style="border-radius:5px;">
+                <Strong>Account: &nbsp;</Strong>
+                <span role="button" class="ps-2 pe-2 me-2 w-auto bg-tags d-inline @(TradeFilter.Account == null ? "bg-blue":"")"
+                      @onclick="()=>FilterByAccount(null)">All</span>
+                @foreach (var item in FilterList.Select(s => s.TradingAccount).Distinct())
+                {
+                    string className = "ps-2 pe-2 me-2 w-auto bg-tags d-inline " + (item == TradeFilter.Account ? "bg-blue" : "");
+                    <span role="button" class="@className" @onclick="()=>FilterByAccount(item)">
+                        @item (@FilterList.Count(c => c.TradingAccount == item))
+                    </span>
+                }
+            </div>
+            <div class="flex justify-content-start bg-white m-1 p-1" style="border-radius:5px;">
+                <Strong>Strategies: &nbsp;</Strong>
+                <span role="button" class="ps-2 pe-2 me-2 w-auto bg-tags d-inline @(TradeFilter.Strategy == null ? "bg-blue":"")"
+                      @onclick="()=>FilterByStrategy(null)">All</span>
+                @foreach (var item in FilterList.Select(s => s.Strategy).Distinct())
+                {
+                    string className = "ps-2 pe-2 me-2 w-auto bg-tags d-inline " + (item == TradeFilter.Strategy ? "bg-blue" : "");
+                    <span role="button" class="@className" @onclick="()=>FilterByStrategy(item)">
+                        @item (@FilterList.Count(c => c.Strategy == item))
+                    </span>
+                }
+            </div>
+            <div class="flex justify-content-start bg-white m-1 p-1" style="border-radius:5px;">
+                <Strong>Sectors: &nbsp;</Strong>
+                <span role="button" class="ps-2 pe-2 me-2 w-auto bg-tags d-inline @(TradeFilter.Sector == null ? "bg-blue":"")"
+                      @onclick="()=>FilterBySector(null)">All</span>
+                @foreach (var item in FilterList.Select(s => s.Equity.Sector).Distinct())
+                {
+                    string className = "ps-2 pe-2 me-2 w-auto bg-tags d-inline " + (item == TradeFilter.Sector ? "bg-blue" : "");
+                    <span role="button" class="@className" @onclick="()=>FilterBySector(item)">
+                        @item (@FilterList.Count(c => c.Equity.Sector == item))
+                    </span>
+                }
+            </div>
+        </div>
+    }
+    <hr />
+    <div class="bg-blue" style="padding:10px 3px 1px 10px">
+        <a href="/trading/trade-book/portfolio" class="@(TradeFilter.TabName== "portfolio" ? "tabs p-1 ps-2 pe-2 active-tab":"tabs p-1 ps-2 pe-2")"
+           @onclick="@(()=>FilterByTab("portfolio"))">Portfolio</a>
+        <a href="/trading/trade-book/report" class="@(TradeFilter.TabName == "report" ? "tabs p-1 ps-2 pe-2 active-tab":"tabs p-1 ps-2 pe-2 ")"
+           @onclick="@(()=>FilterByTab("report"))">Report</a>
+    </div>
+    <div class="card-body table-responsive">
+        @if (TradeFilter.TabName == "portfolio")
+        {
+            <table class="table border">
+                <thead>
+                    <tr>
+                        <th>SR</th>
+                        <th>Stratergy</th>
+                        <th>Account</th>
+                        <th>Code</th>
+                        <th>Sector</th>
+                        <th>Buy Rate</th>
+                        <th>LTP</th>
+                        <th>Day C</th>
+                        <th>Target</th>
+                        <th>Position</th>
+                        <th>Buy Value</th>
+                        <th>Trade Type</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Tradings.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="15">
+                                <div class="text-warning">There is no data</div>
+                            </td>
+                        </tr>
+                    }
+                    @for (int i = 0; i < Tradings.Count; i++)
+                    {
+                        var row = Tradings[i];
+                        <tr>
+                            <td @onclick="()=>ShowHideOrders(row.Id)">
+                                <span class="toggle-btn @(ActiveTradeId==row.Id ? "toggle-btn-active":"")">
+                                    @(ActiveTradeId == row.Id ? "-" : "+")
+                                </span>
+                                @* @if (ActiveTradeId == row.Id)
+                                {
+                                    <span class=" toggle-btn">
+                                        <Icon Name="IconName.ChevronDown" Class="svg-action toggle-btn" />
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class=" toggle-btn">
+                                        <Icon Name="IconName.ChevronRight" Class="svg-action" />
+                                    </span>
+                                } *@
+                            </td>
+                            <td>
+                                <span class="bg-tags" style="width:fit-content">
+                                    @row.Strategy
+                                </span>
+                            </td>
+                            <td>@row.TradingAccount</td>
+                            <td class="analysis">
+                                <a href="https://groww.in/stocks/@row.Equity.GrowwSearchId" target="_blank">@row.Code</a>
+                                <span class="tooltiptext">@row.Equity.Name</span>
+                            </td>
+                            <td>@row.Equity.Sector</td>
+                            <td>@row.BuyRate.ToCString()</td>
+                            <td>@row.Equity.LTP.ToCString()</td>
+                            <td>
+                                <span class="bg-tags" style="width:fit-content; color:@(row.Equity.DayChangePer > 0 ? Green : Red);
+                                                background-color:@(row.Equity.DayChangePer > 0 ? Green.HexToRGBA() :  Red.HexToRGBA())">
+                                    @row.Equity.DayChange (@row.Equity.DayChangePer.ToFixed()%)
+                                </span>
+                            </td>
+                            <td class="analysis">
+                                <span class="@(row.CurrentStatus > row.TargetPerc ? "ready-to-sell pulse":"")">@row.TargetRate.ToCString()</span>
+                                <span class="tooltiptext">Target: @row.TargetPerc%</span>
+                            </td>
+                            <td title="Open Positions vs Total Quantity">@row.Postion/@row.Quantity</td>
+                            <td>@(row.BuyValue - row.MarginAmount)</td>
+                            <td class="analysis">
+                                @row.TradeType
+                                @if (row.TradeType == TradeType.MTF)
+                                {
+                                    <div class="tooltiptext">
+                                        <div>
+                                            MFT Margin: <strong>@row.MarginPerc.ToFixed(0)%</strong>
+                                        </div>
+                                        <div>
+                                            MFT Loan: <strong>@row.MarginAmount</strong>
+                                        </div>
+                                        <div>
+                                            Daily MFT Interest: <strong>@row.DailyMftInt</strong>
+                                        </div>
+                                        <div>
+                                            Total MFT Interest: <strong>@(row.DailyMftInt * row.HoldingDays)</strong>
+                                        </div>
+                                        <div>
+                                            MFT Status: <strong>@row.ActualPLPerc.ToFixed()%</strong>
+                                        </div>
+                                    </div>
+                                }
+                            </td>
+                            <td class="flex">
+                                <span class="bg-tags" style="width: 75px;color:@(row.CurrentStatus > 0 ? Green :  Red);
+                                    background-color:@(row.CurrentStatus > 0 ? Green.HexToRGBA() :  Red.HexToRGBA())">
+                                    @row.CurrentStatus.ToFixed()%
+                                </span>
+                                <Icon title="Add More" Name="IconName.PlusCircle" class="text-primary svg-action m-1" Clicked="()=> OpenAddMorePopup(row)">
+                                </Icon>
+                            </td>
+                        </tr>
+                        if (ActiveTradeId == row.Id)
+                        {
+                            <tr>
+                                <td colspan="13" style="padding:0rem !important">
+                                    <table class="table mb-0">
+                                        <thead style="background-color:#1f496382!important">
+                                            <tr>
+                                                <th>Order Type</th>
+                                                <th>Buy Date</th>
+                                                <th>Buy Rate</th>
+                                                <th>Target</th>
+                                                <th>Quantity</th>
+                                                <th>Buy Value</th>
+                                                <th>Holding</th>
+                                                @if (row.TradeType == TradeType.MTF)
+                                                {
+                                                    <th>Daily Int.</th>
+                                                    <th>Total Int</th>
+                                                }
+                                                <th>Status</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var order in row.Orders.Where(x => x.OrderType == OrderType.Buy))
+                                            {
+                                                var sold = row.Orders.Where(x => x.OrderType == OrderType.Sell && x.BuyOrderId == order.Id).Sum(s => s.Quantity);
+                                                order.AvailableToSell = order.Quantity - sold;
+                                                <tr>
+                                                    <td>
+                                                        <span class="bg-tags" style="width: 75px;color:@(order.OrderType == OrderType.Buy ? ColorNames.Green :  ColorNames.Red);
+                                                                        background-color:@(order.OrderType == OrderType.Buy ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                                                            @order.OrderType
+                                                        </span>
+                                                    </td>
+                                                    <td>@order.OrderDate?.ToString("dd-MMM-yy")</td>
+                                                    <td>@order.OrderRate.ToCString()</td>
+                                                    <td>@order.TargetPerc.ToPString()</td>
+                                                    <td>@order.Quantity </td>
+                                                    <td>@(order.OrderValue - order.MarginAmount)</td>
+                                                    <td>@order.HoldingDays Days</td>
+                                                    @if (row.TradeType == TradeType.MTF)
+                                                    {
+                                                        <td>@order.DailyMftInt</td>
+                                                        <td>@(order.DailyMftInt * order.HoldingDays)</td>
+                                                    }
+                                                    <td>@order.OrderStatus</td>
+                                                    @if (order.OrderType == OrderType.Buy && order.Quantity > sold)
+                                                    {
+                                                        <a role="button" class="text-white m-1" @onclick="()=> OpenSellPopup(order)">
+                                                            <img class="svg-action" style="vertical-align:top" src="/Images/sell.png" title="Sell Target" />
+                                                        </a>
+
+                                                        <a title="Delete Trade" role="button" @onclick="async()=> {await DeleteTradeAsync(order.Id);}">
+                                                            <Icon Name="IconName.Delete" class="text-danger svg-action m-1" />
+                                                        </a>
+                                                    }
+                                                </tr>
+                                                if (order.SellOrders.Count > 0)
+                                                {
+                                                    <tr>
+                                                        <td colspan="13" style="padding:0rem !important">
+                                                            <table class="table mb-0">
+                                                                <thead style="background-color:#1f496382!important">
+                                                                    <tr>
+                                                                        <th></th>
+                                                                        <th>Sell</th>
+                                                                        <th>Sell Date</th>
+                                                                        <th>Sell Rate</th>
+                                                                        <th>Achived Target</th>
+                                                                        <th>Quantity</th>
+                                                                        <th>Sell Value</th>
+                                                                        <th>Holding</th>
+                                                                        @if (row.TradeType == TradeType.MTF)
+                                                                        {
+                                                                            <th>Daily Int.</th>
+                                                                            <th>Total Int</th>
+                                                                        }
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    @foreach (var sell in order.SellOrders)
+                                                                    {
+                                                                        var tg = (sell.OrderRate - order.OrderRate) / (order.OrderRate == 0 ? 1 : order.OrderRate) * 100;
+                                                                        <tr>
+                                                                            <td></td>
+                                                                            <td>
+                                                                                <span class="bg-tags" style="width: 75px;color:@ColorNames.Red;
+                                                                                                        background-color:@ColorNames.Red.HexToRGBA()">
+                                                                                    @sell.OrderType
+                                                                                </span>
+                                                                            </td>
+                                                                            <td>@sell.OrderDate?.ToString("dd-MMM-yy")</td>
+                                                                            <td>@sell.OrderRate.ToCString()</td>
+                                                                            <td>
+                                                                                <span class="bg-tags" style="width: 75px;color:@(tg > 0 ? ColorNames.Green :  ColorNames.Red);
+                                                                        background-color:@(tg > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                                                                                    @tg?.ToPString()
+                                                                                </span>
+                                                                            </td>
+                                                                            <td>@sell.Quantity </td>
+                                                                            <td>@(sell.OrderValue - sell.MarginAmount)</td>
+                                                                            <td>@sell.HoldingDays Days</td>
+                                                                            @if (row.TradeType == TradeType.MTF)
+                                                                            {
+                                                                                <td>@sell.DailyMftInt</td>
+                                                                                <td>@(sell.DailyMftInt * sell.HoldingDays)</td>
+                                                                            }
+                                                                        </tr>
+                                                                    }
+                                                                </tbody>
+                                                            </table>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        }
+        @if (TradeFilter.TabName == "report")
+        {
+            <table class="table border">
+                <thead>
+                    <tr>
+                        <th>SR</th>
+                        <th>Stratergy</th>
+                        <th>Account</th>
+                        <th>Code</th>
+                        <th>Sector</th>
+                        <th>Buy Rate</th>
+                        <th>Sell Rate</th>
+                        <th>Buy Date</th>
+                        <th>Sell Date</th>
+                        <th>Trade Type</th>
+                        <th>Margin</th>
+                        <th>Margin Int.</th>
+                        <th>Holding Days</th>
+                        <th>Qty</th>
+                        <th>Target</th>
+                        <th>Trade Value</th>
+                        <th>Trade PL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Tradings.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="17">
+                                <div class="text-warning">There is no data</div>
+                            </td>
+                        </tr>
+                    }
+                    @for (int i = 0; i < Tradings.Count; i++)
+                    {
+                        var row = Tradings[i];
+                        <tr>
+                            <td @onclick="()=>ShowHideOrders(row.Id)">
+                                <button class="toggle-btn @(ActiveTradeId==row.Id ? "toggle-btn-active":"")">+</button>
+                            </td>
+                            <td>@row.Strategy</td>
+                            <td>@row.TradingAccount</td>
+                            <td title="@row.Equity.Name">
+                                <a href="https://groww.in/stocks/@row.Equity.GrowwSearchId" target="_blank">@row.Code</a>
+                            </td>
+                            <td>@row.Equity.Sector</td>
+                            <td>@row.BuyRate.ToCString()</td>
+                            <td>@row.SellRate.ToCString()</td>
+                            <td>@row.BuyDate?.ToString("dd-MMM-yy")</td>
+                            <td>@row.SellDate?.ToString("dd-MMM-yy")</td>
+                            <td>@row.TradeType</td>
+                            <td>@row.MarginPerc.ToFixed(0)% </td>
+                            <td class="analysis">
+                                @row.MarginInterest.ToCString()
+                                <span class="tooltiptext">Target: @row.MarginAmount</span>
+                            </td>
+                            <td>@row.HoldingDays Day(s)</td>
+                            <td>@row.Quantity</td>
+                            <td>@row.TargetPerc?.ToFixed(1)%</td>
+                            <td>@((row.BuyValue - row.MarginAmount).ToCString())</td>
+                            <td>
+                                <span class="bg-tags" style="width:fit-content; color:@(row.ReleasedPLPerc > 0 ? Green :  Red);
+                                    background-color:@(row.ReleasedPLPerc > 0 ? Green.HexToRGBA() :  Red.HexToRGBA())">
+                                    @row.ReleasedPL.ToFixed(0) (@row.ReleasedPLPerc.ToFixed(1)%)
+                                </span>
+                            </td>
+                        </tr>
+                        if (ActiveTradeId == row.Id)
+                        {
+                            <tr>
+                                <td colspan="17" style="padding:0rem !important">
+                                    <table class="table mb-0">
+                                        <thead style="background-color:#1f496382!important">
+                                            <tr>
+                                                <th>Order Type</th>
+                                                <th>Buy Date</th>
+                                                <th>Buy Rate</th>
+                                                <th>Target</th>
+                                                <th>Quantity</th>
+                                                <th>Buy Value</th>
+                                                <th>Holding</th>
+                                                @if (row.TradeType == TradeType.MTF)
+                                                {
+                                                    <th>Daily Int.</th>
+                                                    <th>Total Int</th>
+                                                }
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var order in row.Orders.Where(x => x.OrderType == OrderType.Buy))
+                                            {
+                                                var sold = row.Orders.Where(x => x.OrderType == OrderType.Sell && x.BuyOrderId == order.Id).Sum(s => s.Quantity);
+                                                order.AvailableToSell = order.Quantity - sold;
+                                                <tr>
+                                                    <td>
+                                                        <span class="bg-tags" style="width: 75px;color:@(order.OrderType == OrderType.Buy ? ColorNames.Green :  ColorNames.Red);
+                                                                        background-color:@(order.OrderType == OrderType.Buy ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                                                            @order.OrderType
+                                                        </span>
+                                                    </td>
+                                                    <td>@order.OrderDate?.ToString("dd-MMM-yy")</td>
+                                                    <td>@order.OrderRate.ToCString()</td>
+                                                    <td>@order.TargetPerc.ToPString()</td>
+                                                    <td>@order.Quantity </td>
+                                                    <td>@(order.OrderValue - order.MarginAmount)</td>
+                                                    <td>@order.HoldingDays Days</td>
+                                                    @if (row.TradeType == TradeType.MTF)
+                                                    {
+                                                        <td>@order.DailyMftInt</td>
+                                                        <td>@(order.DailyMftInt * order.HoldingDays)</td>
+                                                    }
+                                                </tr>
+                                                if (order.SellOrders.Count > 0)
+                                                {
+                                                    <tr>
+                                                        <td colspan="17" style="padding:0rem !important">
+                                                            <table class="table mb-0">
+                                                                <thead style="background-color:#1f496382!important">
+                                                                    <tr>
+                                                                        <th></th>
+                                                                        <th>Sell</th>
+                                                                        <th>Sell Date</th>
+                                                                        <th>Sell Rate</th>
+                                                                        <th>Achived Target</th>
+                                                                        <th>Quantity</th>
+                                                                        <th>Sell Value</th>
+                                                                        <th>Holding</th>
+                                                                        @if (row.TradeType == TradeType.MTF)
+                                                                        {
+                                                                            <th>Daily Int.</th>
+                                                                            <th>Total Int</th>
+                                                                        }
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    @foreach (var sell in order.SellOrders)
+                                                                    {
+                                                                        var tg = order.OrderRate == 0 ? 100 : ((sell.OrderRate - order.OrderRate) / (order.OrderRate) * 100);
+                                                                        <tr>
+                                                                            <td></td>
+                                                                            <td>
+                                                                                <span class="bg-tags" style="width: 75px;color:@ColorNames.Red;
+                                                                                                        background-color:@ColorNames.Red.HexToRGBA()">
+                                                                                    @sell.OrderType
+                                                                                </span>
+                                                                            </td>
+                                                                            <td>@sell.OrderDate?.ToString("dd-MMM-yy")</td>
+                                                                            <td>@sell.OrderRate.ToCString()</td>
+                                                                            <td>
+                                                                                <span class="bg-tags" style="width: 75px;color:@(tg > 0 ? ColorNames.Green :  ColorNames.Red);
+                                                                        background-color:@(tg > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                                                                                    @tg?.ToPString()
+                                                                                </span>
+                                                                            </td>
+                                                                            <td>@sell.Quantity </td>
+                                                                            <td>@(sell.OrderValue - sell.MarginAmount)</td>
+                                                                            <td>@sell.HoldingDays Days</td>
+                                                                            @if (row.TradeType == TradeType.MTF)
+                                                                            {
+                                                                                <td>@sell.DailyMftInt</td>
+                                                                                <td>@(sell.DailyMftInt * sell.HoldingDays)</td>
+                                                                            }
+                                                                        </tr>
+                                                                    }
+                                                                </tbody>
+                                                            </table>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+                        }
+
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+
+@if (TradeBookModel is not null)
+{
+    <PopupWindow ClosePopup="() => TradeBookModel = null" Title="Add new order">
+
+        <TradeBookOrderForm BuyStrategy="" StockCode="" EquityId="0" CloseForm="()=>{TradeBookModel=null;}"
+                            BuyRate="0" TargetPerc="5" OnClose="async() => { await GetDataAsync();}" />
+    </PopupWindow>
+}
+
+@if (EquityModel is not null)
+{
+    <PopupWindow ClosePopup="() => EquityModel = null" Title="Add new Entity Stock/ETF">
+        <EquityForm CloseForm="()=>{EquityModel=null;}"
+                    OnClose="() => { }" />
+    </PopupWindow>
+}
+
+@if (AddQuantityModel is not null)
+{
+    <PopupWindow ClosePopup="() => AddQuantityModel = null" Title=@($"Add more quantity for {AddQuantityModel.Code}")>
+
+        <Validations Mode="ValidationMode.Auto" @ref="AddQuantityModelValidation" Model="@AddQuantityModel"
+                     ValidateOnLoad=false HandlerType="typeof(FluentValidationHandler)">
+            <div class="row">
+                <div class="col-md-2 col-6">
+                    <label class="required">Order Date</label>
+                    <Validation>
+                        <DateEdit Max="@DateTimeOffset.Now.ToIst()" TValue="DateOnly?"
+                                  @bind-Date=AddQuantityModel.OrderDate>
+                            <Feedback>
+                                <ValidationError />
+                            </Feedback>
+                        </DateEdit>
+                    </Validation>
+                </div>
+                <div class="col-md-2 col-6">
+                    <label class="required">Order Rate</label>
+                    <Validation>
+                        <NumericEdit @bind-Value=AddQuantityModel.OrderRate Class="form-control" Placeholder="Order Rate">
+                            <Feedback>
+                                <ValidationError />
+                            </Feedback>
+                        </NumericEdit>
+                    </Validation>
+                </div>
+                <div class="col-md-2 col-6">
+                    <label class="required">Quantity</label>
+                    <Validation>
+                        <NumericEdit @bind-Value=AddQuantityModel.Quantity Class="form-control" Placeholder="Quantity">
+                            <Feedback>
+                                <ValidationError />
+                            </Feedback>
+                        </NumericEdit>
+                    </Validation>
+                </div>
+                <div class="col-md-2 col-6">
+                    <label class="required">Target Per</label>
+                    <Validation>
+                        <NumericEdit @bind-Value=AddQuantityModel.TargetPerc Step="1" Class="form-control" Placeholder="Target Per">
+                            <Feedback>
+                                <ValidationError />
+                            </Feedback>
+                        </NumericEdit>
+                    </Validation>
+                </div>
+
+                <div class="col-md-2 col-6 button-pt button-mt">
+                    <Button Class="btn me-3 btn-success" Clicked="AddQuantityAsync">Add Quantity</Button>
+                </div>
+            </div>
+        </Validations>
+    </PopupWindow>
+}
+
+@if (SellModel is not null)
+{
+    <PopupWindow ClosePopup="() => SellModel = null" Title=@($"Sell {SellModel.Code}")>
+
+        <Validations Mode="ValidationMode.Auto" @ref="SellModelValidation" Model="@SellModel" ValidateOnLoad=false HandlerType="typeof(FluentValidationHandler)">
+            <div class="row">
+                <div class="col-md-2 col-6">
+                    <label class="required">Sell Date</label>
+                    <Validation>
+                        <DateEdit TValue="DateOnly?" Min="SellModel.MinSellDate.ToDateTimeOffset()" TValue="DateOnly?"
+                                  Placeholder="Sell Date" @bind-Date=SellModel.OrderDate Max="DateTimeOffset.Now">
+                            <Feedback>
+                                <ValidationError />
+                            </Feedback>
+                        </DateEdit>
+                    </Validation>
+                </div>
+                <div class="col-md-2 col-6">
+                    <label class="required">Sell Rate</label>
+                    <Validation>
+                        <NumericPicker @bind-Value=SellModel.OrderRate Class="form-control" Placeholder="Sell Rate">
+                            <Feedback>
+                                <ValidationError />
+                            </Feedback>
+                        </NumericPicker>
+                    </Validation>
+                </div>
+                <div class="col-md-2 col-6">
+                    <label class="required">Sell Quantity </label>
+                    <Validation>
+                        <NumericPicker @bind-Value=SellModel.Quantity Step="1" Max="SellModel.AvailableToSell" Class="form-control" Placeholder="Sell Quantity">
+                            <Feedback>
+                                <ValidationError />
+                            </Feedback>
+                        </NumericPicker>
+                    </Validation>
+                    <span style="font-size:0.9rem; color:lightsalmon">Available Qty: <span style="font-weight:700">@SellModel.AvailableToSell</span></span>
+                </div>
+                <div class="col-md-2 col-6">
+                    <label class="required">Sell Action</label>
+                    <Validation>
+                        <SelectList Class="form-control" TItem="SellAction" TValue="SellAction?" @bind-SelectedValue="@SellModel.SellAction">
+                            <ChildContent>
+                                <option value="0" disabled="disabled">Select Type</option>
+                                @foreach (var value in Enum.GetValues<SellAction>())
+                                {
+                                    <option value="@value">@value</option>
+                                }
+                            </ChildContent>
+                            <Feedback>
+                                <ValidationError />
+                            </Feedback>
+                        </SelectList>
+                    </Validation>
+                </div> 
+                <div class="col-md-2 col-6">
+                    <label>Sell Remark</label>
+                    <Validation>
+                        <TextEdit Class="form-control" @bind-Text="@SellModel.Remark" Placeholder="Sell remark">
+                            <Feedback>
+                                <ValidationError />
+                            </Feedback>
+                        </TextEdit>
+                    </Validation>
+                </div>
+                <div class="col-md-2 col-6 button-pt button-mt">
+                    <Button Class="btn me-3 btn-success" Clicked="SellTradeAsync">Sell</Button>
+                </div>
+            </div>
+        </Validations>
+    </PopupWindow>
+}

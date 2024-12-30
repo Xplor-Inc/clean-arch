@@ -1,0 +1,108 @@
+﻿@page "/Watchlist"
+@attribute [Authorize]
+@using ShareMarket.Core.Entities.Equities;
+@using ShareMarket.Core.Models.Dtos.Equities;
+@using ShareMarket.Core.Entities;
+
+@inject NavigationManager _NavManager;
+@inherits ComponentBaseClass;
+@inject IRepositoryConductor<Watchlist> watchlistRepo;
+
+@* @inherits ComponentBaseClass; *@
+
+<PageTitle>WatchList</PageTitle>
+<div class="form">
+    <div class="heading flex">
+        <div>WatchList</div>
+        <span role="button"  @onclick="AddNew_Click">
+           Add <Blazorise.Icon Name="IconName.PlusCircle"></Blazorise.Icon>
+        </span>
+    </div>
+   <div class="table-responsive p-2">
+       <div class="flex">
+           <span>Watchlist Master</span>
+           <div>
+                <Paging ItemPerPage="PageSize" NextPage="Page_Next" PrevPage="Page_Prev" RowCount="TotalRecord" Skip="@Skip"></Paging>
+
+           </div>
+       </div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in lstWatchList)
+                {
+                    <tr>
+                        <td>
+                            @item.Name
+                        </td>
+                        <td>
+                            @item.Description
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-warning btn-sm">
+                                <Blazorise.Icon Clicked="()=>Edit_Click(item.Id)" Name="IconName.Edit"></Blazorise.Icon>
+                            </button>
+                            <button type="button" class="btn btn-danger btn-sm">
+                                <Blazorise.Icon Clicked="()=>Edit_DeleteAsync(item.Id)" Name="IconName.Delete"></Blazorise.Icon>
+                            </button>
+                        </td>
+                    </tr>
+                }
+
+            </tbody>
+        </table>
+        
+   </div>
+   
+</div>
+@code {
+    public List<Watchlist> lstWatchList { get; set; } = new List<Watchlist>();
+    public int Skip { get; set; }
+    public int PageSize { get; set; } = 1;
+    public int TotalRecord { get; set; }
+
+    protected override Task OnInitializedAsync()
+    {
+        bindWatchlist();
+        return base.OnInitializedAsync();
+    }
+    private void bindWatchlist()
+    {
+        lstWatchList = watchlistRepo.FindAll(take:PageSize,skip:Skip).ResultObject.ToList();
+        TotalRecord =  watchlistRepo.FindAll().ResultObject.Count();
+    }
+    public void AddNew_Click()
+    {
+        _NavManager.NavigateTo("/Watchlist/Create");
+    }
+    public void Edit_Click(long Id)
+    {
+        _NavManager.NavigateTo($"/Watchlist/Edit/{Id}");
+    }
+    public async Task Edit_DeleteAsync(long Id)
+    {
+        var buyMore = await MessageService.Confirm("Do youu want to Delete");
+        if (!buyMore) { return; }
+
+        var result = await watchlistRepo.DeleteAsync(Id, 1,false);
+        bindWatchlist();
+        await NotificationService.Info("Deleted!", "Delete");
+    }
+
+    private void Page_Next()
+    {
+        Skip += PageSize;
+        bindWatchlist();
+    }
+    private void Page_Prev()
+    {
+        Skip -= PageSize;
+        bindWatchlist();
+    }
+}

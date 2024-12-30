@@ -1,0 +1,249 @@
+﻿@page "/WatchlistStock"
+@using Microsoft.AspNetCore.SignalR.Client
+@using ShareMarket.Core.Entities
+@using ShareMarket.Core.Entities.Equities
+@using ShareMarket.Core.Hubs.SharekhanHub
+@using ShareMarket.Core.Interfaces.Conductors.EquitiesConductors
+@using ShareMarket.Core.Interfaces.Hubs
+@using ShareMarket.Core.Models.Dtos
+@using ShareMarket.WebApp.Components.Pages.Watchlist.Comp
+@using ShareMarket.WebApp.Components.UICustomCmp
+
+@inherits ComponentBaseClass
+@inject IRepositoryConductor<Watchlist> _watchlistRepo;
+@inject IRepositoryConductor<WatchlistStock> _watchlistStockRepo;
+@inject IRepositoryConductor<EquityStock> _EquityStock;
+@inject IMapper _Mapper;
+@inject IEquityDailyPriceSyncConductor _EquityDailyPriceSyncConductor;
+
+@inject NavigationManager Navigation
+@inject INotificationHub Hub;
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Watch List</PageTitle>
+<Loader IsLoading="IsLoading" />
+<h3>Watchlist Stock</h3>
+<div class="row">
+    <div class="col-5">
+        <div class="form-group">
+            <label for="lblWatchList">Watch List</label>
+            <a href="/watchlist" style="float:right;">Add New</a>
+            <CMP_SelectList FieldName="WatchList" Field_OnSelectionChange="ddlWatchList_onChange" SelectListItems="lstWatchListItems"></CMP_SelectList>
+        </div>
+    </div>
+    <div class="col-5">
+        <div class="form-group">
+            <a href="/Stock" style="float:right;">Add New</a>
+            <label for="lblWatchList">Stock List</label>
+            <CMP_DDLAutoComplete clearSearchText="clearStockDropDown" data="lstStockListItems" OnListItemSelect="ddlStockList_onChange"></CMP_DDLAutoComplete>
+        </div>
+    </div>
+    <div class="col-2 align-self-end">
+        <div class="form-group">
+            <input class="btn btn-primary" @onclick="btnAdd_Click" value="Add" type="button" />
+            <input class="btn btn-primary" @onclick="SyncWatchListData" disabled="@(SyncButtonText!="Sync")" value="@SyncButtonText" type="button" />
+        </div>
+    </div>
+</div>
+<div class="row mt-2">
+    <div class="col-12">
+        <div class="card text-center">
+            <div class="card-header">
+                <CMP_NavTabMenu lstItems="lstWatchListItems" Nav_Tab_Click="Nav_Tab_Click" BindCount="true" />
+            </div>
+            <div class="card-body">
+                <CMP_WatchlistStockGrid Delete="DeleteRecord" lstWatchlistStockDto="lstStockWatchListDto"></CMP_WatchlistStockGrid>
+            </div>
+        </div>
+    </div>
+</div>
+
+<NotificationBar Message="@Message"></NotificationBar>
+
+@code {
+
+    public List<SelectListItem> lstWatchListItems { get; set; } = [];
+    public List<SelectListItem> lstStockListItems { get; set; } = [];
+    public WatchlistStock StockWatchListModel { get; set; } = new();
+    public List<WatchlistStockDto> lstStockWatchListDto { get; set; } = [];
+    public string SyncButtonText { get; set; } = "Sync";
+    public bool clearStockDropDown { get; set; }
+    private bool Syncing { get; set; }
+    private int DbUpdateCount { get; set; }
+
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+
+        await BindStockWatchListAsync();
+        await BindWatchListAsync();
+        await BindStockListAsync();      
+
+        hubConnection = new HubConnectionBuilder()
+           .WithUrl(Navigation.ToAbsoluteUri("/notifications-hub"))
+           .Build();
+
+        await base.OnInitializedAsync();
+    }
+
+    protected async Task RefreshCurrentRates()
+    {
+        IsLoading = true;
+
+        if (DateTime.Now.Hour < 16 && DateTime.Now.Hour > 8)
+        {
+            Syncing = true;
+            var sharekhanSyncCodes = lstStockWatchListDto.Select(x => x.EquityStock?.SharekhanId ?? 0).Where(x => x > 0).ToList();
+            await ConfigureWebSocket(sharekhanSyncCodes);
+            SharekhanWebSocket.MessageReceived += RefreshByWebsocket;
+            await NotificationService.Success("Web socket started successfully", "Success");
+        }
+        IsLoading = false;
+    }
+
+    protected async void RefreshByWebsocket(object? sender, SharekhanWebSocketEventArgs e)
+    {
+        DbUpdateCount++;
+        foreach (var trade in lstStockWatchListDto)
+        {
+            var data = SharekhanWebSocket.Tradings.Find(x => x.ScripCode == trade.EquityStock?.SharekhanId);
+            if (data is null || trade.EquityStock is null) continue;
+            trade.EquityStock.LTP = data.Ltp;
+            trade.EquityStock.DayChange = data.RsChange;
+            trade.EquityStock.DayChangePer = data.PerChange;
+        }
+
+        if (DbUpdateCount > 500)
+        {
+            DbUpdateCount = 0;
+            var ids = lstStockWatchListDto.Select(s => s.Id);
+            var trades = await _watchlistStockRepo.FindAll(e => ids.Contains(e.Id), includeProperties: nameof(WatchlistStock.EquityStock), asNoTracking: false).ResultObject.ToListAsync();
+            foreach (var trade in trades)
+            {
+                var data = SharekhanWebSocket.Tradings.Find(x => x.ScripCode == trade.EquityStock?.SharekhanId);
+                if (data == null || trade.EquityStock is null) continue;
+                trade.EquityStock.LTP = data.Ltp;
+                trade.EquityStock.LastSyncOn = DateTime.Now.ToIst();
+                trade.EquityStock.LTPDate = DateOnly.FromDateTime(DateTimeOffset.Now.ToIst().Date);
+                trade.EquityStock.DayChange = data.RsChange;
+                trade.EquityStock.DayChangePer = data.PerChange;
+            }
+
+            var tradeUpdateResult = await _watchlistStockRepo.UpdateAsync(trades, UserId);
+            if (!tradeUpdateResult.HasErrors)
+            {
+                await NotificationService.Success("Trade book updated successfully by Websocket", "Success");
+            }
+        }
+        lstStockWatchListDto = lstStockWatchListDto.OrderByDescending(o => o.EquityStock?.DayChangePer).ToList();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void ddlWatchList_onChange(string value)
+    {
+        int watchListId = 0;
+        int.TryParse(value, out watchListId);
+        StockWatchListModel.WatchListId = watchListId;
+    }
+
+    public async Task BindStockListAsync()
+    {
+        var stockListResp = await _EquityStock.FindAll().ResultObject
+                                              .Select(x => new SelectListItem { Key = x.Id.ToString(), Value = x.Code + " - " + x.Name })
+                                              .ToListAsync();
+    }
+
+    public async Task BindWatchListAsync()
+    {
+        lstWatchListItems = await _watchlistRepo.FindAll().ResultObject
+                                                .Select(item => new SelectListItem
+                                                    {
+                                                        Key     = item.Id.ToString(),
+                                                        Value   = item.Name,
+                                                    }).ToListAsync();
+        lstWatchListItems.ForEach(e => e.Count = lstStockWatchListDto.Count(x => x.WatchListId == Convert.ToInt32(e.Key)));
+        lstWatchListItems.Insert(0, new SelectListItem { Key = "0", Value = "All", Selected = true, Count = lstStockWatchListDto.Count });
+    }
+
+    public void ddlStockList_onChange(SelectListItem selectedItem)
+    {
+        int StockId = 0;
+        int.TryParse(selectedItem.Key, out StockId);
+        StockWatchListModel.EquityStockId = StockId;
+        clearStockDropDown = false;
+    }
+
+    public async Task BindStockWatchListAsync()
+    {
+        var id = StockWatchListModel.WatchListId;
+        var resp = await _watchlistStockRepo.FindAll(x => x.WatchListId == id || id == 0,
+                                                    orderBy:o=>o.OrderBy("EquityStock.DayChangePer","DESC"),
+                                                    includeProperties: "EquityStock,WatchList,EquityStock.EquityStockCalculation")
+                                            .ResultObject.ToListAsync();
+        lstStockWatchListDto = _Mapper.Map<List<WatchlistStockDto>>(resp);
+        IsLoading = false;
+    }
+
+    private async Task Nav_Tab_Click(string key)
+    {
+        IsLoading = true;
+        lstWatchListItems?.ForEach(x => x.Selected = false);
+        var element = lstWatchListItems?.FirstOrDefault(x => x.Key == key);
+        if (element is not null)
+        {
+            element.Selected = true;
+            StockWatchListModel.WatchListId = Convert.ToInt32(element.Key);
+        }
+        await BindStockWatchListAsync();
+        IsLoading = false;
+    }
+
+    private async Task btnAdd_Click()
+    {
+        clearStockDropDown = true;
+        if (StockWatchListModel.EquityStockId <= 0 || StockWatchListModel.WatchListId <= 0)
+        {
+            await NotificationService.Error("Select watchlist or stock to add", "Validation Fail");
+            return;
+        }
+        if (lstStockWatchListDto.Any(x => x.WatchListId == StockWatchListModel.WatchListId && x.StockId == StockWatchListModel.EquityStockId))
+        {
+            await NotificationService.Error("stock already exist in selected watchlist!", "Validation Fail");
+            return;
+        }
+        StockWatchListModel.Id = 0;
+        var resp = await _watchlistStockRepo.CreateAsync(StockWatchListModel, 1);
+        if (resp is not null && !resp.HasErrors)
+        {
+            await NotificationService.Success("added successfully!", "Validation Fail");
+            await BindStockWatchListAsync();
+        }
+        else
+            await NotificationService.Success("Error while adding", "Error");
+    }
+
+    private async Task DeleteRecord(long Id)
+    {
+        var delete = await MessageService.Confirm("Do youu want to Delete");
+        if (!delete) { return; }
+        var resp = await _watchlistStockRepo.DeleteAsync(Id, 1, false);
+        if (!resp.HasErrors)
+        {
+            await NotificationService.Success("Deleted!", "Success");
+            await BindStockWatchListAsync();
+            return;
+        }
+        await NotificationService.Error($"Not Deleted!", "Error");
+    }
+
+    private async Task SyncWatchListData()
+    {
+        SyncButtonText = "Processing..";
+
+        await _EquityDailyPriceSyncConductor.SynchStockListByWatchList();
+        SyncButtonText = "Sync";
+        await BindStockWatchListAsync();
+    }
+}

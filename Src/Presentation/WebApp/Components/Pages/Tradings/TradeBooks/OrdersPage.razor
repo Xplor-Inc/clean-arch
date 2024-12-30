@@ -1,0 +1,133 @@
+﻿@page "/trading/orders"
+@using Blazorise;
+
+@attribute [Authorize]
+
+@inherits ComponentBaseClass
+
+<Loader IsLoading="IsLoading" />
+<PageTitle>Transaction Orders</PageTitle>
+<div class="form">
+    <div class="heading">All Orders</div>
+        <div class="row">
+        <div class="col-md-2">
+            <label for="usr">From Date</label>
+            <DateEdit Max="@DateTimeOffset.Now.ToIst()" Placeholder="Select From Date" TValue="DateOnly?"
+                      @bind-Date=Search.FromDate>
+            </DateEdit>
+        </div>
+        <div class="col-md-2">
+            <label for="usr">To Date</label>
+            <DateEdit Max="@DateTimeOffset.Now.ToIst()" Placeholder="Select To Date" TValue="DateOnly?"
+                      @bind-Date=Search.ToDate Min="Search.FromDate.ToDateTimeOffset()">
+            </DateEdit>
+        </div>
+        <div class="col-md-2">
+            <label>Order Types</label>
+            <InputSelect class="form-control" @bind-Value="@Search.OrderType" TValue="OrderType?">
+                <option>All Orders</option>
+                @foreach (var value in Enum.GetValues<OrderType>())
+                {
+                    <option value="@value">@value</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="col-md-2">
+            <label for="usr">Scrip Code</label>
+            <TextEdit Placeholder="Scrip Code ex. TCS" @bind-Text=Search.ScripCode />
+        </div>
+        <div class="col-md-3 col-6 button-pt">
+            <button type="submit" class="btn btn-primary" @onclick="()=>GetOrders(0)">
+                Search
+            </button>
+        </div>
+    </div>
+
+    <div class="text-end">
+        <Paging ItemPerPage="@PagingDto.ItemPerPage" RowCount="@PagingDto.RowCount" Skip="@PagingDto.Skip" PrevPage="@PrevPage" NextPage="@NextPage" />
+    </div>
+
+    <table class="table mb-0">
+        <thead style="background-color:#1f496382!important">
+            <tr>
+                <th>##</th>
+                <th>
+                    <SortHeader SortData="SortData" SortBy="@PagingDto.SortBy"
+                                SortOrder="@PagingDto.SortOrder" SortByColumn="OrderType" DisplayName="Order Type" />
+                </th>
+                <th>
+                    <SortHeader SortData="SortData" SortBy="@PagingDto.SortBy" SortOrder="@PagingDto.SortOrder"
+                                SortByColumn="Equity.Name" DisplayName="Scrip" />
+                </th>
+                <th>
+                    <SortHeader SortData="SortData" SortBy="@PagingDto.SortBy" SortOrder="@PagingDto.SortOrder"
+                                SortByColumn="OrderDate" DisplayName="Order Date" />
+                </th>
+                <th>
+                    <SortHeader SortData="SortData" SortBy="@PagingDto.SortBy" SortOrder="@PagingDto.SortOrder"
+                                SortByColumn="OrderRate" DisplayName="Order Rate" />
+                </th>
+                <th>
+                    <SortHeader SortData="SortData" SortBy="@PagingDto.SortBy" SortOrder="@PagingDto.SortOrder"
+                                SortByColumn="TargetPerc" />
+                </th>
+                <th>
+                    <SortHeader SortData="SortData" SortBy="@PagingDto.SortBy" SortOrder="@PagingDto.SortOrder" 
+                        SortByColumn="Quantity" />
+                </th>
+                <th>
+                    <SortHeader SortData="SortData" SortBy="@PagingDto.SortBy" SortOrder="@PagingDto.SortOrder" 
+                        SortByColumn="OrderValue" DisplayName="Order Value"/>
+                </th>
+                <th>
+                    <SortHeader SortData="SortData" SortBy="@PagingDto.SortBy" SortOrder="@PagingDto.SortOrder" 
+                        SortByColumn="HoldingDays" DisplayName="Holding Days"/>
+                </th>
+                <th>
+                    <SortHeader SortData="SortData" SortBy="@PagingDto.SortBy" SortOrder="@PagingDto.SortOrder" 
+                        SortByColumn="DailyMftInt" DisplayName="Daily Int."/>
+                </th>
+                <th>Total Int</th>
+                <th>Status</th>
+                <th>Created On</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (int i = 0; i < Orders.Count; i++)
+            {
+                var order = Orders[i];
+                var isSold = order.Quantity - order.SellOrders.Sum(s => s.Quantity);
+                <tr>
+                    <td>@(i + 1 + PagingDto.Skip)</td>
+                    <td>
+                        <span class="bg-tags" style="width: 75px;color:@(order.OrderType == OrderType.Buy ? ColorNames.Green :  ColorNames.Red);
+                                                 background-color:@(order.OrderType == OrderType.Buy ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                            @order.OrderType
+                        </span>
+                    </td>
+                    <td class="analysis">
+                        <a href="https://groww.in/stocks/@order.Equity.GrowwSearchId" target="_blank">@order.Code</a>
+                        <span class="tooltiptext">@order.Equity.Name</span>
+                    </td>
+                    <td>@order.OrderDate?.ToString("dd-MMM-yy")</td>
+                    <td>@order.OrderRate.ToCString()</td>
+                    <td>@order.TargetPerc.ToPString()</td>
+                    <td>@order.Quantity </td>
+                    <td>@(order.OrderValue - order.MarginAmount)</td>
+                    <td>@order.HoldingDays Days</td>
+                    <td>@order.DailyMftInt</td>
+                    <td>@(order.DailyMftInt * order.HoldingDays)</td>
+                    <th>
+                        <span class="bg-tags" style="width: 75px;color:@(isSold == 0 ? ColorNames.Green :  ColorNames.Red);
+                                                 background-color:@(isSold == 0  ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                            @(isSold == 0 ? "Closed" : "Open")
+                        </span>
+                    </th>
+                    <td>@order.CreatedOn.ToString("dd-MMM-yy, hh:mm:ss")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+</div>

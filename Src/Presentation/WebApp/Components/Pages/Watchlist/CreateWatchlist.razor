@@ -1,0 +1,73 @@
+﻿@page "/Watchlist/Create"
+@using ShareMarket.Core.Entities;
+@using ShareMarket.WebApp.Components.UICustomCmp;
+@inherits ComponentBaseClass
+@inject IRepositoryConductor<Watchlist> StockRepo;
+@inject NavigationManager _NavManager;
+
+@inject IdentityRedirectManager RedirectManager;
+
+<h3>Create Watchlist</h3>
+
+    <div class="form-group">
+        <label for="Name">Name</label>
+        
+        <CMP_TextBox FieldName="@nameof(Name)" FieldValue="@Name" Field_OnFocusOut="Name_OnFocusOut"></CMP_TextBox>
+
+       @*  <input type="text" class="form-control" @onfocusout="Name_OnFocusOut" value="@Name" id="Name" placeholder="Enter Name"> *@
+       @*  <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small> *@
+    </div>
+    <div class="form-group">
+        <label for="Description">Description</label>
+        <CMP_TextBox FieldName="@nameof(Description)" FieldValue="@Description" Field_OnFocusOut="Description_OnFocusOut"></CMP_TextBox>
+    </div>
+   @*  <div class="form-check">
+        <input type="checkbox" class="form-check-input" id="exampleCheck1">
+        <label class="form-check-label" for="exampleCheck1">Check me out</label>
+    </div> *@
+    <button type="button" @onclick="Create" class="btn btn-primary">Add</button>
+
+@code {
+
+
+    public required string Name { get; set; }
+
+    public required string Description { get; set; }
+
+
+    private void Name_OnFocusOut(string value)
+    {
+        Name = value;
+    }
+    private void Description_OnFocusOut(string value)
+    {
+        Description = value;
+    }
+    private async Task Create(EventArgs args)
+    {
+        try
+        {
+
+            if (!string.IsNullOrEmpty(Name))
+            {
+                var ss = await StockRepo.CreateAsync(new Watchlist { Name = Name, Description = Description, UserId = SystemConstant.sharadUser }, 1);
+               _NavManager.NavigateTo("Watchlist");
+                //RedirectManager.RedirectTo("Watchlist");
+
+            }
+            else
+            {
+                await NotificationService.Error("Enter Name", "Validation Fail");
+            }
+            
+        }
+        catch (Exception)
+        {
+            
+            throw;
+        }
+        
+    }
+
+    
+}

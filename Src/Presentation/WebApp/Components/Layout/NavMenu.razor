@@ -1,0 +1,83 @@
+﻿@using static ShareMarket.WebApp.Components.Shared.CustomIcon
+
+<header>
+    <nav class="navbar-expand-sm navbar-toggleable-sm box-shadow fixed-top navbar navbar-light"
+         style="background-image: linear-gradient(to right, #4f7d99,#4f7d99, #4f7d99);">
+        <div class="box-container container">
+            <a class="navbar-brand ms-3" href="/">
+                <img src="/images/logo.jpg" height="30" width="30" alt="Logo">
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+                    aria-controls="navbarSupportedContent" id="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation" @onclick="ToggleNavMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse @(collapseNavMenu ? "collapse": "")" onclick="document.getElementById('navbarSupportedContent').click()">
+                <AuthorizeView>
+                    <Authorized>
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/">
+                                    <Blazorise.Icon Name="IconName.Mail" Class="icon-menu" /> Notifications
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/equitymarket" Match="Microsoft.AspNetCore.Components.Routing.NavLinkMatch.All">
+                                    <CustomIcon Name="IconType.Dashboard" Class="icon-menu" />
+                                    Dashboard
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/WatchlistStock" Match="Microsoft.AspNetCore.Components.Routing.NavLinkMatch.All">
+                                    <CustomIcon Name="IconType.PositiveDynamic" Class="icon-menu" />
+                                    Watch List
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/trading/virtual-trade" Match="Microsoft.AspNetCore.Components.Routing.NavLinkMatch.All">
+                                    <CustomIcon Name="IconType.PositiveDynamic" Class="icon-menu" />
+                                    Virtual Trade
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/trading/trade-book" Match="Microsoft.AspNetCore.Components.Routing.NavLinkMatch.All">
+                                    <CustomIcon Name="IconType.PositiveDynamic" Class="icon-menu" />
+                                    Trade Book
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/trading/orders" Match="Microsoft.AspNetCore.Components.Routing.NavLinkMatch.All">
+                                    <CustomIcon Name="IconType.PositiveDynamic" Class="icon-menu" />
+                                    Orders
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/hangfire/recurring" target="_blank">
+                                    <Blazorise.Icon Name="IconName.Home" Class="icon-menu" /> Hangfire
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="/settings/hangfire-jobs">
+                                    <Blazorise.Icon Name="IconName.Home" Class="icon-menu" /> Settings
+                                </NavLink>
+                            </li>
+                        </ul>
+                    </Authorized>
+                </AuthorizeView>
+                <div class="d-flex">
+                    <LoginDisplay />
+                </div>
+            </div>
+        </div>
+    </nav>
+</header>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}

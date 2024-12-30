@@ -1,0 +1,42 @@
+﻿@page "/sharekhan/read-token";
+@using ShareMarket.Core.Entities.Settings
+@using ShareMarket.Core.Interfaces.Services.Sharekhan
+
+@inherits ComponentBaseClass
+
+@inject NavigationManager NavManager
+@inject IRepositoryConductor<AppConfig> AppConfigRepo;
+@inject ISharekhanService SharekhanService;
+
+
+@code {
+    [SupplyParameterFromQuery]
+    private string? Request_Token { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var path = NavManager.BaseUri;
+        var appConfig = await AppConfigRepo.FindAll(x => x.Provider == "Sharekhan" && x.RedirectUrl.StartsWith(path) && x.DeletedOn == null)
+                                    .ResultObject.FirstOrDefaultAsync();
+        if (appConfig is not null && Request_Token is not null)
+        {
+            var tokenResult = await SharekhanService.GenerateAccessToken(path, Request_Token);
+            if (tokenResult.HasErrors)
+            {
+                await NotificationService.Error(tokenResult.GetErrors(), "Sharekhan Service");
+                return;
+            }
+            appConfig.AccessToken = tokenResult.ResultObject;
+            appConfig.ExpireOn = DateTimeOffset.Now.Date;
+            var tokenUpdateResult = await AppConfigRepo.UpdateAsync(appConfig, SystemConstant.SystemUserId);
+            if (tokenUpdateResult.HasErrors)
+            {
+                await NotificationService.Error(tokenUpdateResult.GetErrors(), "Sharekhan Service");
+                return;
+            }
+            await NotificationService.Success("Token updated successfully in DB", "Sharekhan Service");
+            NavManager.NavigateTo("/trading/trade-book");
+        }
+    }
+}

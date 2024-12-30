@@ -1,0 +1,159 @@
+﻿@attribute [Authorize]
+@using Blazorise;
+@using Blazorise.Components;
+@using ShareMarket.Core.Conductors.TradeBooks
+@using ShareMarket.Core.Entities.Equities
+@using ShareMarket.Core.Entities.Tradings
+
+@inherits ComponentBaseClass
+
+@inject IRepositoryConductor<TradeBook> BookRepo;
+@inject IRepositoryConductor<TradeOrder> BookOrderRepo;
+@inject IRepositoryConductor<EquityStock> EquityRepo;
+@inject ITradeBookConductor TradeBookConductor;
+
+<Loader IsLoading="IsLoading" />
+@if (TradeBookModel is not null)
+{
+    <Validations Mode="ValidationMode.Auto" @ref="TradeBookModelValidation" Model="@TradeBookModel" ValidateOnLoad=false HandlerType="typeof(FluentValidationHandler)">
+        <div class="row">
+            <div class="col-md-3 col-6">
+                <label class="required">Account</label>
+                <Validation>
+                    <SelectList Class="form-control" TItem="string" TValue="string" @bind-SelectedValue="@TradeBookModel.TradingAccount"
+                                DefaultItemText="Select Account" DefaultItemDisabled DefaultItemValue="null">
+                        <ChildContent>
+                            @foreach (var value in Accounts)
+                            {
+                                <option value="@value">@value</option>
+                            }
+                        </ChildContent>
+                        <Feedback>
+                            <ValidationError />
+                        </Feedback>
+                    </SelectList>
+                </Validation>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="required">Statergy</label>
+                <Validation>
+                    <Autocomplete TItem="string"
+                                  TValue="string"
+                                  MinLength="0"
+                                  Data="Statergies"
+                                  TextField="@(( item ) => item)"
+                                  ValueField="@(( item ) => item)"
+                                  Placeholder="Select/Enter Trade Reference..."
+                                  SelectionMode="AutocompleteSelectionMode.Default"
+                                  Filter="AutocompleteFilter.StartsWith"
+                                  FreeTyping
+                                  @bind-SelectedText="TradeBookModel.Strategy">
+                    </Autocomplete>
+                    <TextEdit Style="display:none" @bind-Text="@TradeBookModel.Strategy">
+                        <Feedback>
+                            <ValidationError />
+                        </Feedback>
+                    </TextEdit>
+                </Validation>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="required">Stock</label>
+                <Validation>
+                    <Autocomplete TItem="SelectListItem"
+                                  TValue="string"
+                                  MinLength="2"
+                                  Data="AutoCompleteCodes"
+                                  ReadData="@OnHandleReadData"
+                                  TextField="@(( item ) => item.Value)"
+                                  ValueField="@(( item ) => item.Key)"
+                                  Placeholder="Type Equity Code/Name..."
+                                  SelectionMode="AutocompleteSelectionMode.Default"
+                                  Filter="AutocompleteFilter.StartsWith"
+                                  @bind-SelectedValue="TradeBookModel.Code">
+                    </Autocomplete>
+                    <TextEdit Style="display:none" @bind-Text="@TradeBookModel.Code">
+                        <Feedback>
+                            <ValidationError />
+                        </Feedback>
+                    </TextEdit>
+                </Validation>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="required">Trade Type</label>
+                <Validation>
+                    <SelectList Class="form-control" TItem="TradeType" TValue="TradeType?" @bind-SelectedValue="@TradeBookModel.TradeType"
+                                DefaultItemText="Select Option" DefaultItemDisabled DefaultItemValue="null">
+                        <ChildContent>
+                            @foreach (var value in Enum.GetValues<TradeType>())
+                            {
+                                <option value="@value">@value</option>
+                            }
+                        </ChildContent>
+                        <Feedback>
+                            <ValidationError />
+                        </Feedback>
+                    </SelectList>
+                </Validation>
+            </div>
+            @if (TradeBookModel.TradeType != TradeType.Delivery)
+            {
+                <div class="col-md-3 col-6">
+                    <label class="required">Margin Percentage</label>
+                    <Validation>
+                        <NumericEdit @bind-Value=TradeBookModel.MarginPerc Class="form-control" Placeholder="Margin Percentage">
+                            <Feedback>
+                                <ValidationError />
+                            </Feedback>
+                        </NumericEdit>
+                    </Validation>
+                </div>
+            }
+            <div class="col-md-3 col-6">
+                <label class="required">Order Date</label>
+                <Validation>
+                    <DateEdit Max="@DateTimeOffset.Now.ToIst()" TValue="DateOnly?"
+                              @bind-Date=TradeBookModel.OrderDate>
+                        <Feedback>
+                            <ValidationError />
+                        </Feedback>
+                    </DateEdit>
+                </Validation>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="required">Order Rate</label>
+                <Validation>
+                    <NumericEdit @bind-Value=TradeBookModel.OrderRate Class="form-control" Placeholder="Order Rate">
+                        <Feedback>
+                            <ValidationError />
+                        </Feedback>
+                    </NumericEdit>
+                </Validation>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="required">Quantity</label>
+                <Validation>
+                    <NumericEdit @bind-Value=TradeBookModel.Quantity Class="form-control" Placeholder="Quantity">
+                        <Feedback>
+                            <ValidationError />
+                        </Feedback>
+                    </NumericEdit>
+                </Validation>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="required">Target Per</label>
+                <Validation>
+                    <NumericEdit @bind-Value=TradeBookModel.TargetPerc Step="1" Class="form-control" Placeholder="Target Per">
+                        <Feedback>
+                            <ValidationError />
+                        </Feedback>
+                    </NumericEdit>
+                </Validation>
+            </div>
+
+            <div class="col-md-2 col-6 button-pt button-mt">
+                <Button Class="btn me-3 btn-success" Clicked="Buy">Add Trade</Button>
+            </div>
+        </div>
+    </Validations>
+
+}

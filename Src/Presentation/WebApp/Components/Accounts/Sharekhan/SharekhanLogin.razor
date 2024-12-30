@@ -1,0 +1,29 @@
+﻿@page "/sharekhan/get-token";
+@using ShareMarket.Core.Entities.Settings
+
+
+@inherits ComponentBaseClass
+@attribute [Authorize]
+
+
+@inject NavigationManager NavManager
+@inject IRepositoryConductor<AppConfig> AppConfigRepo;
+
+
+@code {
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var path = NavManager.BaseUri;
+            var x = await AppConfigRepo.FindAll(x => x.Provider == "Sharekhan" && x.RedirectUrl.StartsWith(path) && x.DeletedOn == null)
+                                        .ResultObject.FirstOrDefaultAsync();
+            if (x is not null)
+            {
+                string sharepath = $"https://api.sharekhan.com/skapi/auth/login.html?api_key={x.ApiKey}";
+                NavManager.NavigateTo(sharepath);
+            }
+        }
+    }
+}

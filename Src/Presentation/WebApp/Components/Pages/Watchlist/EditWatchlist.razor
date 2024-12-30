@@ -1,0 +1,77 @@
+﻿@page "/Watchlist/Edit/{Id:long}"
+@using ShareMarket.Core.Entities;
+@using ShareMarket.WebApp.Components.UICustomCmp;
+
+@inject IRepositoryConductor<Watchlist> watchlistRepo;
+@inject NavigationManager _NavManager;
+@inject IToastService toastService;
+@inject IdentityRedirectManager RedirectManager;
+
+<h3>Edit Watchlist</h3>
+<form>
+    <div class="form-group">
+        <label for="Name">Name</label>
+        <CMP_TextBox FieldName="@nameof(watchlist.Name)" FieldValue="@watchlist.Name" Field_OnFocusOut="Name_OnFocusOut"></CMP_TextBox>
+
+        @*  <input type="text" class="form-control" @onfocusout="Name_OnFocusOut" value="@Name" id="Name" placeholder="Enter Name"> *@
+        @*  <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small> *@
+    </div>
+    <div class="form-group">
+        <label for="Description">Description</label>
+        <CMP_TextBox FieldName="@nameof(watchlist.Description)" FieldValue="@watchlist.Description" Field_OnFocusOut="Description_OnFocusOut"></CMP_TextBox>
+    </div>
+    @*  <div class="form-check">
+    <input type="checkbox" class="form-check-input" id="exampleCheck1">
+    <label class="form-check-label" for="exampleCheck1">Check me out</label>
+    </div> *@
+    <button type="submit" @onclick="UpdateAsync" class="btn btn-primary">Add</button>
+</form>
+
+@code {
+
+    [Parameter]
+    public long Id { get; set; }
+
+    public required Watchlist watchlist { get; set; }
+    protected override void OnInitialized()
+    {
+        watchlist = watchlistRepo.FindAll(x => x.Id == Id).ResultObject.SingleOrDefault() ?? new Watchlist();
+        
+        base.OnInitialized();
+    }
+
+    private void Name_OnFocusOut(string value)
+    {
+        watchlist.Name = value;
+    }
+    private void Description_OnFocusOut(string value)
+    {
+        watchlist.Description = value;
+    }
+    private async Task UpdateAsync(EventArgs args)
+    {
+        try
+        {
+
+            if (!string.IsNullOrEmpty(watchlist.Name))
+            {
+                var ss = await watchlistRepo.UpdateAsync(watchlist, 1);
+                _NavManager.NavigateTo($"{_NavManager.BaseUri}/Watchlist");
+
+            }
+            else
+            {
+                await toastService.Error("Name Required");
+            }
+
+        }
+        catch (Exception)
+        {
+
+            throw;
+        }
+
+    }
+
+
+}

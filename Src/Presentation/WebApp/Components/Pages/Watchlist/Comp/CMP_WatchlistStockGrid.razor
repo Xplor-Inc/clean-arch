@@ -1,0 +1,307 @@
+﻿@using ShareMarket.Core.Entities.Equities
+@using ShareMarket.Core.Models.Dtos
+@using ShareMarket.WebApp.Components.UICustomCmp
+<table style="text-align:left" class="table table-sm">
+    <thead>
+        <tr>
+            <th align="right">Stock Name</th>
+            @*  <th>Sector</th> *@
+            <CMP_Table_TH style="text-align:right" ColumnName="MarketCap" HeaderText="MarketCap" inlineStylePara="text-align:right"
+            SortByASC="@SortByASC" SortColumn="@SortColumn"
+            TH_OnClick="(ColumnName)=>onTableCoumnClick(ColumnName)"></CMP_Table_TH>
+            <th style="text-align:right">Price</th>
+
+            <CMP_Table_TH align="right" ColumnName="DChng" HeaderText="DChng%" inlineStylePara="text-align:right"
+            SortByASC="@SortByASC" SortColumn="@SortColumn"
+            TH_OnClick="(ColumnName)=>onTableCoumnClick(ColumnName)"></CMP_Table_TH>
+
+            <CMP_Table_TH ColumnName="PE" HeaderText="PE" inlineStylePara="text-align:right"
+            SortByASC="@SortByASC" SortColumn="@SortColumn" 
+            TH_OnClick="(ColumnName)=>onTableCoumnClick(ColumnName)"></CMP_Table_TH>
+            <CMP_Table_TH ColumnName="RSI" HeaderText="RSI" inlineStylePara="text-align:right"
+            SortByASC="@SortByASC" SortColumn="@SortColumn"
+            TH_OnClick="(ColumnName)=>onTableCoumnClick(ColumnName)"></CMP_Table_TH>
+            <CMP_Table_TH ColumnName="1W" HeaderText="1W%" inlineStylePara="text-align:right"
+            SortByASC="@SortByASC" SortColumn="@SortColumn"
+            TH_OnClick="(ColumnName)=>onTableCoumnClick(ColumnName)"></CMP_Table_TH>
+            <CMP_Table_TH ColumnName="15D" HeaderText="15D%" inlineStylePara="text-align:right"
+            SortByASC="@SortByASC" SortColumn="@SortColumn"
+            TH_OnClick="(ColumnName)=>onTableCoumnClick(ColumnName)"></CMP_Table_TH>
+            <CMP_Table_TH ColumnName="1M" HeaderText="1M%" inlineStylePara="text-align:right"
+            SortByASC="@SortByASC" SortColumn="@SortColumn"
+            TH_OnClick="(ColumnName)=>onTableCoumnClick(ColumnName)"></CMP_Table_TH>
+            <CMP_Table_TH ColumnName="3M" HeaderText="3M%" inlineStylePara="text-align:right"
+            SortByASC="@SortByASC" SortColumn="@SortColumn"
+            TH_OnClick="(ColumnName)=>onTableCoumnClick(ColumnName)"></CMP_Table_TH>
+            <CMP_Table_TH ColumnName="6M" HeaderText="6M%" inlineStylePara="text-align:right"
+            SortByASC="@SortByASC" SortColumn="@SortColumn"
+            TH_OnClick="(ColumnName)=>onTableCoumnClick(ColumnName)"></CMP_Table_TH>
+            <CMP_Table_TH ColumnName="1Y" HeaderText="1Y%" inlineStylePara="text-align:right"
+            SortByASC="@SortByASC" SortColumn="@SortColumn"
+            TH_OnClick="(ColumnName)=>onTableCoumnClick(ColumnName)"></CMP_Table_TH>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in lstWatchlistStockDto)
+        {
+            <tr>
+
+
+                <td class="analysis">
+                    <a target="_blank" href="@($"https://groww.in/stocks/{item.EquityStock?.GrowwSearchId}")">@item.EquityStock?.Code</a>
+                    <div class="tooltiptext">
+                        Stock: @item.EquityStock?.Name <br /> Sector:@item.EquityStock?.Sector  <br /> lastSync : @item.EquityStock?.LastSyncOn
+                    </div>
+                </td>
+
+                <td align="right" style="">@item.EquityStock?.MarketCap</td>
+                <td align="right" style="">@item.EquityStock?.LTP.GetAmountInStringFormat()</td>
+                <td align="right" style="">
+                    <span class="bg-tags text-end" style="color:@(@item.EquityStock?.DayChangePer > 0 ? ColorNames.Green :  ColorNames.Red);
+                                    background-color:@(@item.EquityStock?.DayChangePer > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @item.EquityStock?.DayChangePer.ToPString()
+                        <Blazorise.Icon Name="@(item.EquityStock?.DayChangePer > AvgDayChng ? IconName.SortUp:IconName.SortDown)"
+                        Style="@(item.EquityStock?.DayChangePer > AvgDayChng ? "color:"+ ColorNames.Green : "color:"+ ColorNames.Red)" />
+                    </span>
+                </td>
+                @*  <td style="">@item.EquityStock?.LTPDate</td> *@
+
+                <td align="right" style="">@item.EquityStock?.PE</td>
+                <td align="right" style="">@item.EquityStock?.EquityStockCalculation?.RSI</td>
+                <td align="right" style="">
+                    <span class="bg-tags text-end" style="color:@(@item.EquityStock?.EquityStockCalculation?.PerChange_1W > 0 ? ColorNames.Green :  ColorNames.Red);
+                                    background-color:@(@item.EquityStock?.EquityStockCalculation?.PerChange_1W > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @item.EquityStock?.EquityStockCalculation?.PerChange_1W.ToPString()
+
+                        <Blazorise.Icon Name="@(item.EquityStock?.EquityStockCalculation?.PerChange_1W > Avg1WChng ? IconName.SortUp:IconName.SortDown)"
+                        Style="@(item.EquityStock?.EquityStockCalculation?.PerChange_1W > Avg1WChng ? "color:"+ ColorNames.Green : "color:"+ ColorNames.Red)" />
+                    </span>
+                </td>
+                <td align="right" style="">
+                    <span class="bg-tags text-end" style="color:@(@item.EquityStock?.EquityStockCalculation?.PerChange_15D > 0 ? ColorNames.Green :  ColorNames.Red);
+                                    background-color:@(@item.EquityStock?.EquityStockCalculation?.PerChange_15D > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @item.EquityStock?.EquityStockCalculation?.PerChange_15D.ToPString()
+                        <Blazorise.Icon Name="@(item.EquityStock?.EquityStockCalculation?.PerChange_15D > Avg15DChng ? IconName.SortUp:IconName.SortDown)"
+                        Style="@(item.EquityStock?.EquityStockCalculation?.PerChange_15D > Avg15DChng ? "color:"+ ColorNames.Green : "color:"+ ColorNames.Red)" />
+                    </span>
+                </td>
+                <td align="right" style="">
+                    <span class="bg-tags text-end" style="color:@(@item.EquityStock?.EquityStockCalculation?.PerChange_1M > 0 ? ColorNames.Green :  ColorNames.Red);
+                                    background-color:@(@item.EquityStock?.EquityStockCalculation?.PerChange_1M > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @item.EquityStock?.EquityStockCalculation?.PerChange_1M.ToPString()
+                        <Blazorise.Icon Name="@(item.EquityStock?.EquityStockCalculation?.PerChange_1M > Avg1MChng ? IconName.SortUp:IconName.SortDown)"
+                        Style="@(item.EquityStock?.EquityStockCalculation?.PerChange_1M > Avg1MChng ? "color:"+ ColorNames.Green : "color:"+ ColorNames.Red)" />
+                    </span>
+                </td>
+                <td align="right" style="">
+                    <span class="bg-tags text-end" style="color:@(@item.EquityStock?.EquityStockCalculation?.PerChange_3M > 0 ? ColorNames.Green :  ColorNames.Red);
+                                    background-color:@(@item.EquityStock?.EquityStockCalculation?.PerChange_3M > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @item.EquityStock?.EquityStockCalculation?.PerChange_3M.ToPString()
+                        <Blazorise.Icon Name="@(item.EquityStock?.EquityStockCalculation?.PerChange_3M > Avg3MChng ? IconName.SortUp:IconName.SortDown)"
+                        Style="@(item.EquityStock?.EquityStockCalculation?.PerChange_3M > Avg3MChng ? "color:"+ ColorNames.Green : "color:"+ ColorNames.Red)" />
+                    </span>
+                </td>
+                <td align="right" style="">
+                    <span class="bg-tags text-end" style="color:@(@item.EquityStock?.EquityStockCalculation?.PerChange_6M > 0 ? ColorNames.Green :  ColorNames.Red);
+                                    background-color:@(@item.EquityStock?.EquityStockCalculation?.PerChange_6M > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @item.EquityStock?.EquityStockCalculation?.PerChange_6M.ToPString()
+                        <Blazorise.Icon Name="@(item.EquityStock?.EquityStockCalculation?.PerChange_6M > Avg6MChng ? IconName.SortUp:IconName.SortDown)"
+                        Style="@(item.EquityStock?.EquityStockCalculation?.PerChange_6M > Avg6MChng ? "color:"+ ColorNames.Green : "color:"+ ColorNames.Red)" />
+                    </span>
+                </td>
+                <td align="right" style="">
+                    <span class="bg-tags text-end" style="color:@(@item.EquityStock?.EquityStockCalculation?.PerChange_1Y > 0 ? ColorNames.Green :  ColorNames.Red);
+                                    background-color:@(@item.EquityStock?.EquityStockCalculation?.PerChange_1Y > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @item.EquityStock?.EquityStockCalculation?.PerChange_1Y.ToPString()
+                        <Blazorise.Icon Name="@(item.EquityStock?.EquityStockCalculation?.PerChange_1Y > Avg1yChng ? IconName.SortUp:IconName.SortDown)"
+                        Style="@(item.EquityStock?.EquityStockCalculation?.PerChange_1Y > Avg1yChng ? "color:"+ ColorNames.Green : "color:"+ ColorNames.Red)" />
+                    </span>
+                </td>
+                <td align="right" class="analysis">
+                    <span class="text-decoration-underline text-primary ms-2" role="button">
+                        Action
+                    </span>
+
+                    <div class="tooltiptext" style="margin-left:10px;right:0px">
+                        <button type="button" class="btn btn-danger btn-sm">
+                            <Blazorise.Icon Clicked="()=>DeleteRecord(item.Id)" Name="IconName.Delete"></Blazorise.Icon>
+                        </button>
+                        <a target="_blank" class="text-white" href="@($"{ item.EquityStock?.ScreenerUrl}")">Screener</a> ||
+                        <a target="_blank" class="text-white" href="@($"{item.EquityStock?.FinologyUrl}")">Finology</a> ||
+                        <a target="_blank" class="text-white" href="@($"https://www.equitypandit.com/share-price/{item.EquityStock?.Code}")">Pandit</a> ||
+                    </div>
+
+
+                </td>
+            </tr>
+        }
+    </tbody>
+    @if (lstWatchlistStockDto.Count > 0)
+    {
+        <tfoot>
+            <tr>
+
+
+                <td class="analysis">
+                </td>
+
+                <td style=""></td>
+                <td style=""></td>
+                <td align="right" style="">
+                    <span class="bg-tags" style="color:@(AvgDayChng > 0 ? ColorNames.Green :  ColorNames.Red);
+                      background-color:@(AvgDayChng > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @AvgDayChng.ToPString()
+
+                    </span>
+                </td>
+                @*  <td style="">@item.EquityStock?.LTPDate</td> *@
+
+                <td style=""></td>
+                <td style=""></td>
+                <td align="right" style="">
+                    <span class="bg-tags" style="color:@(Avg1WChng >0 ? ColorNames.Green :  ColorNames.Red);
+                      background-color:@(Avg1WChng > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @Avg1WChng.ToPString()
+                    </span>
+                </td>
+                <td align="right" style="">
+                    <span class="bg-tags" style="color:@(Avg15DChng > 0 ? ColorNames.Green :  ColorNames.Red);
+                      background-color:@(Avg15DChng > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @Avg15DChng.ToPString()
+                    </span>
+                </td>
+                <td align="right" style="">
+                    <span class="bg-tags" style="color:@(Avg1MChng > 0 ? ColorNames.Green :  ColorNames.Red);
+                      background-color:@(Avg1MChng > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @Avg1MChng.ToPString()
+                    </span>
+                </td>
+                <td align="right" style="">
+                    <span class="bg-tags" style="color:@(Avg3MChng > 0 ? ColorNames.Green :  ColorNames.Red);
+                      background-color:@(Avg3MChng > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @Avg3MChng.ToPString()
+                    </span>
+                </td>
+                <td align="right" style="">
+                    <span class="bg-tags" style="color:@(Avg6MChng > 0 ? ColorNames.Green :  ColorNames.Red);
+                      background-color:@(Avg6MChng > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @Avg6MChng.ToPString()
+                    </span>
+                </td>
+                <td align="right" style="">
+                    <span class="bg-tags" style="color:@(Avg1yChng > 0 ? ColorNames.Green :  ColorNames.Red);
+                      background-color:@(Avg1yChng > 0 ? ColorNames.Green.HexToRGBA() :  ColorNames.Red.HexToRGBA())">
+                        @Avg1yChng.ToPString()
+                    </span>
+                </td>
+                <td class="analysis">
+                </td>
+            </tr>
+
+        </tfoot>
+    }
+</table>
+
+@code {
+    [Parameter]
+    public List<WatchlistStockDto> lstWatchlistStockDto { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<long> Delete { get; set; }
+
+    public decimal AvgDayChng { get; set; }
+    public decimal Avg1WChng { get; set; }
+    public decimal Avg15DChng { get; set; }
+    public decimal Avg1MChng { get; set; }
+    public decimal Avg3MChng { get; set; }
+    public decimal Avg6MChng { get; set; }
+    public decimal Avg1yChng { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (lstWatchlistStockDto.Count > 0)
+        {
+            var lstStockCalculation = lstWatchlistStockDto.Where(x => x.EquityStock?.EquityStockCalculation != null)
+                                                          .Select(x => x.EquityStock?.EquityStockCalculation ?? new EquityStockCalculation()).ToList();
+            AvgDayChng = lstWatchlistStockDto.Average(item => item.EquityStock?.DayChangePer ?? 0).ToFixed();
+            if (lstStockCalculation.Count > 0)
+            {
+                Avg1WChng = lstStockCalculation.Average(item => item.PerChange_1W).ToFixed();
+                Avg15DChng = lstStockCalculation.Average(item => item.PerChange_15D).ToFixed();
+                Avg1MChng = lstStockCalculation.Average(item => item.PerChange_1M).ToFixed();
+                Avg3MChng = lstStockCalculation.Average(item => item.PerChange_3M).ToFixed();
+                Avg6MChng = lstStockCalculation.Average(item => item.PerChange_6M).ToFixed();
+                Avg1yChng = lstStockCalculation.Average(item => item.PerChange_1Y).ToFixed();
+            }
+           
+        }
+        base.OnParametersSet();
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        return base.OnInitializedAsync();
+    }
+
+    private async Task DeleteRecord(long Id)
+    {
+        await Delete.InvokeAsync(Id);
+    }
+
+    public bool SortByASC { get; set; }
+    public string SortColumn { get; set; } = "1W";
+
+    private void onTableCoumnClick(string columnName)
+    {
+        SortByASC = !SortByASC;
+        SortColumn = columnName;
+
+        switch (SortColumn)
+        {
+
+            case "15D":
+                lstWatchlistStockDto = SortByASC ? lstWatchlistStockDto.OrderBy(x => x.EquityStock?.EquityStockCalculation?.PerChange_15D).ToList()
+                                           : lstWatchlistStockDto.OrderByDescending(x => x.EquityStock?.EquityStockCalculation?.PerChange_15D).ToList();
+                break;
+            case "1M":
+                lstWatchlistStockDto = SortByASC ? lstWatchlistStockDto.OrderBy(x => x.EquityStock?.EquityStockCalculation?.PerChange_1M).ToList()
+                                           : lstWatchlistStockDto.OrderByDescending(x => x.EquityStock?.EquityStockCalculation?.PerChange_1M).ToList();
+                break;
+            case "3M":
+                lstWatchlistStockDto = SortByASC ? lstWatchlistStockDto.OrderBy(x => x.EquityStock?.EquityStockCalculation?.PerChange_3M).ToList()
+                                           : lstWatchlistStockDto.OrderByDescending(x => x.EquityStock?.EquityStockCalculation?.PerChange_3M).ToList();
+                break;
+            case "6M":
+                lstWatchlistStockDto = SortByASC ? lstWatchlistStockDto.OrderBy(x => x.EquityStock?.EquityStockCalculation?.PerChange_6M).ToList()
+                                           : lstWatchlistStockDto.OrderByDescending(x => x.EquityStock?.EquityStockCalculation?.PerChange_6M).ToList();
+                break;
+            case "1Y":
+                lstWatchlistStockDto = SortByASC ? lstWatchlistStockDto.OrderBy(x => x.EquityStock?.EquityStockCalculation?.PerChange_1Y).ToList()
+                                           : lstWatchlistStockDto.OrderByDescending(x => x.EquityStock?.EquityStockCalculation?.PerChange_1Y).ToList();
+                break;
+            case "PE":
+                lstWatchlistStockDto = SortByASC ? lstWatchlistStockDto.OrderBy(x => x.EquityStock?.PE).ToList()
+                                           : lstWatchlistStockDto.OrderByDescending(x => x.EquityStock?.PE).ToList();
+                break;
+            case "RSI":
+                lstWatchlistStockDto = SortByASC ? lstWatchlistStockDto.OrderBy(x => x.EquityStock?.EquityStockCalculation?.RSI).ToList()
+                                           : lstWatchlistStockDto.OrderByDescending(x => x.EquityStock?.EquityStockCalculation?.RSI).ToList();
+                break;
+            case "DChng":
+                lstWatchlistStockDto = SortByASC ? lstWatchlistStockDto.OrderBy(x => x.EquityStock?.DayChangePer).ToList()
+                                           : lstWatchlistStockDto.OrderByDescending(x => x.EquityStock?.DayChangePer).ToList();
+                break;
+            case "MarketCap":
+                lstWatchlistStockDto = SortByASC ? lstWatchlistStockDto.OrderBy(x => x.EquityStock?.MarketCap).ToList()
+                                           : lstWatchlistStockDto.OrderByDescending(x => x.EquityStock?.MarketCap).ToList();
+                break;
+            default:
+                lstWatchlistStockDto = SortByASC ? lstWatchlistStockDto.OrderBy(x => x.EquityStock?.EquityStockCalculation?.PerChange_1W).ToList()
+                                           : lstWatchlistStockDto.OrderByDescending(x => x.EquityStock?.EquityStockCalculation?.PerChange_1W).ToList();
+                break;
+        }
+
+    }
+
+}

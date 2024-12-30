@@ -1,0 +1,28 @@
+﻿<div style="overflow-y: scroll; width: 100%; position: fixed; display: block; top: 0px; height: 100%; z-index: 1031;">
+    <div class="popup form">
+        @if(!string.IsNullOrEmpty(Title)){
+            <div class="heading">
+                <div class="text">@Title</div>
+            </div>
+        }
+        <span onclick="document.getElementsByTagName('body')[0].style.overflowY = 'auto'">
+            <span class="closeX bg-white" @onclick="ClosePopup">X</span>
+        </span>
+        @ChildContent
+    </div>
+    <div class="overlay"></div>
+</div>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public EventCallback ClosePopup { get; set; }
+}
+
+<script>
+    document.getElementsByTagName('body')[0].style.overflowY = 'hidden';
+</script>

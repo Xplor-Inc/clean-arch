@@ -1,0 +1,17 @@
+﻿.nav-item:hover, .nav-item:focus {
+    background-color: #00bcd4 !important;
+    border-radius: 10px 10px 0px 0px;
+}
+.nav-item {
+    border-radius: 10px 10px 0px 0px;
+    margin: 0px 2px;
+    background-color: #4f7d99;
+}
+.nav-tabs .nav-link:focus, .nav-tabs .nav-link:hover {
+    border-color: transparent;
+    color:white !important;
+  
+}
+.nav-selected {
+    background-color: #1f4963;
+}

@@ -1,0 +1,57 @@
+﻿@if (Logs.Count > 0)
+{
+    <hr />
+    <div class="form">
+        <div class="heading">
+            ChangeLogs
+        </div>
+        <div class="table-responsive p-2">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>SR.</th>
+                        <th>Field Name</th>
+                        <th>Old Value</th>
+                        <th>New Value</th>
+                        <th>Changed On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Logs.Count; i++)
+                    {
+                        <tr>
+                            <td>@(i + 1)</td>
+                            <td>@Logs[i].PropertyName</td>
+                            <td>
+                                @if (DateTimeOffset.TryParse(Logs[i].OldValue, out DateTimeOffset OldValue))
+                                {
+                                    <span> @OldValue.ToDateTimeString()</span>
+                                }
+                                else
+                                {
+                                    <span> @Logs[i].OldValue</span>
+                                }
+                            </td>
+                            <td>
+                                @if (DateTimeOffset.TryParse(Logs[i].NewValue, out DateTimeOffset NewValue))
+                                {
+                                    <span> @NewValue.ToDateTimeString()</span>
+                                }
+                                else
+                                {
+                                    <span> @Logs[i].NewValue</span>
+                                }
+                            </td>
+                            <td>@Logs[i].CreatedOn.ToDateTimeString()</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+[Parameter]
+    public List<ChangeLog> Logs { get; set; } = [];
+}

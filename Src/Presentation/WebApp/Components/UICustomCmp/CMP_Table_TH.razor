@@ -1,0 +1,41 @@
+﻿
+<th style="cursor:pointer; @inlineStylePara" @onclick="HeaderColumn_Click" @attributes="thAttributes">
+    @HeaderText
+    @if (SortColumn == ColumnName)
+    {
+        if (SortByASC)
+        {
+            <Blazorise.Icon Name="IconName.ArrowUp"></Blazorise.Icon>
+           @*  <img style="float:right" src="images/sort-up.svg" /> *@
+        }
+        else
+        {
+            <Blazorise.Icon Name="IconName.ArrowDown"></Blazorise.Icon>
+           @*  <img style="float:right" src="images/sort-down.svg" /> *@
+        }
+    }
+</th>
+@code {
+    [Parameter]
+    public required string ColumnName { get; set; }
+    [Parameter]
+    public bool SortByASC { get; set; }
+    [Parameter]
+    public required string HeaderText { get; set; }
+    [Parameter]
+    public required string SortColumn { get; set; }
+    [Parameter]
+    public string inlineStylePara { get; set; } = "text-align:left";
+
+    [Parameter]
+    public EventCallback<string> TH_OnClick { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object> thAttributes { get; set; } =
+       new Dictionary<string, object>();
+
+    private async void HeaderColumn_Click()
+    {
+        await TH_OnClick.InvokeAsync(ColumnName);
+    }
+}

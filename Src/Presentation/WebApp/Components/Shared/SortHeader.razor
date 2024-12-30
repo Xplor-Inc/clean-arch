@@ -1,0 +1,40 @@
+﻿@using Blazorise;
+@using ShareMarket.WebApp.Components.Pages.Tradings.TradeBooks
+
+<div @onclick="@(()=>Filter(SortByColumn))" role="button" class="sort-header-th">
+    <span> @(DisplayName ?? SortByColumn)</span>
+    @if (SortByColumn == SortBy)
+    {
+        <Icon Name="@(SortOrder == "DESC" ? IconName.AngleDown : IconName.AngleUp)" style="color:#0dcaf0" />
+    }
+    else
+    {
+        <Icon Name="IconName.AngleUp" style="color:black" />
+    }
+</div>
+
+@code {
+
+    [Parameter]
+    public required string SortOrder { get; set; }
+
+    [Parameter]
+    public required string SortBy { get; set; }
+
+    [Parameter]
+    public string? DisplayName { get; set; }
+
+    [Parameter]
+    public required string SortByColumn { get; set; }
+
+    [Parameter]
+    public required EventCallback<PagingDto> SortData { get; set; }
+
+    private async Task Filter(string sortByColumn)
+    {
+        string sortOrder = SortOrder == "DESC" ? "ASC" : "DESC";
+        sortOrder = SortBy == sortByColumn ? sortOrder : "ASC";
+        var options = new PagingDto { SortBy = sortByColumn, SortOrder = sortOrder };
+        await SortData.InvokeAsync(options);
+    }
+}

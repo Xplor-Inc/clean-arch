@@ -1,0 +1,45 @@
+﻿@page "/settings/hangfire-jobs"
+@using Microsoft.AspNetCore.SignalR.Client
+@using ShareMarket.Core.Entities
+
+@inject NavigationManager Navigation
+@inject IRepositoryConductor<Entity> BaseRepo;
+@inject IWebHostEnvironment Env;
+@inherits ComponentBaseClass
+
+<PageTitle>Settings</PageTitle>
+
+<Blazorise.Button Class="btn btn-warning" Clicked="HangfireCleanUp">Reset Hangfire Jobs</Blazorise.Button>
+<Blazorise.Button Class="btn btn-warning" Clicked="HangfireCleanUp">
+    <a href="/sharekhan/get-token">Get Sharekhan Auth Token</a>
+</Blazorise.Button>
+
+@code {
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+    protected async Task HangfireCleanUp()
+    {
+        try
+        {
+            string query = File.ReadAllText(Path.Combine(Env.WebRootPath, "scripts", "HangfireScript.sql"));
+            var response = await BaseRepo.ExecuteCommandAsync(query);
+            if (response.HasErrors)
+            {
+                await NotificationService.Error(response.GetErrors(), "Error", x => x.Autohide = false);
+            }
+            else
+            {
+                HangfireRecurringJobManager.CreateRecurringJob();
+                await NotificationService.Success("Hangfire Jobs reset successfully", "Success");
+            }
+        }
+        catch (Exception ex)
+        {
+            await NotificationService.Error(ex.ToString(), "Error", x => x.Autohide = false);
+        }
+    }
+}

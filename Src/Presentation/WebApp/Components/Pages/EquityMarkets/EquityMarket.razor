@@ -1,0 +1,177 @@
+﻿@page "/equitymarket";
+@inherits ComponentBaseClass
+@attribute [Authorize]
+
+@using Blazorise.Components;
+@using Blazorise;
+@using ShareMarket.Core.Entities.Equities
+@using ShareMarket.Core.Entities.Tradings
+@using ShareMarket.Core.Services;
+@using ShareMarket.Core.Interfaces.Services.Groww
+@using ShareMarket.WebApp.Components.Pages.Tradings.TradeBooks
+
+@inject NavigationManager NavManager
+@inject IRepositoryConductor<EquityStock> EquityStocksRepo;
+@inject IRepositoryConductor<VirtualTrade> TradeRepo;
+@inject IRepositoryConductor<EquityPriceHistory> HistoryRepo;
+@inject IGrowwService GrowwService;
+
+<Loader IsLoading="IsLoading" />
+<PageTitle>Trading</PageTitle>
+<h3>
+    Trade Prediction Book
+</h3>
+<div class="row">
+    <div class="col-md-1">
+        <label>Stock Code</label>
+        <TextEdit @bind-Text=Code Class="form-control" Placeholder="Stock Code" />
+    </div>
+    <div class="col-md-1">
+        <label>Groww Rank</label>
+        <NumericEdit @bind-Value=GrowwRank Class="form-control" Placeholder="Groww Rank" />
+    </div>
+    <div class="col-md-1">
+        <label>Trade Date</label>
+        <DateEdit InputMode="DateInputMode.Date" Date="Date" TValue="DateOnly" DateChanged="async(DateOnly date)=>{Date = date; await GetDataAsync(BuyStratergy.RSIBelow35);}" />
+    </div>
+    <div class="col-1 button-pt">
+        <Button Class="@(Stratergy == BuyStratergy.RSIBelow35 ? "btn btn-primary active":"btn btn-success ")" 
+        Clicked="()=>GetDataAsync(BuyStratergy.RSIBelow35)">RSI Below 35</Button>
+    </div>
+    <div class="col-1 button-pt">
+        <Button Class="@(Stratergy == BuyStratergy.RSI55To70 ? "btn btn-primary active":"btn btn-success ")"
+                Clicked="()=>GetDataAsync(BuyStratergy.RSI55To70)">
+            RSI 55 To 70
+        </Button>
+    </div>
+    <div class="col-2 button-pt">
+        <Button Class="@(Stratergy == BuyStratergy.RSI14EMADiffLess1 ? "btn btn-primary active":"btn btn-success ")" 
+        Clicked="()=>GetDataAsync(BuyStratergy.RSI14EMADiffLess1)">RSI 14EMA Diff -1</Button>
+    </div>
+    <div class="col-1 offset-6 text-end">
+        <Button Class="btn btn-warning" Clicked="LTPUpdate">Refresh LTP</Button>
+    </div>
+</div>
+@if (TodaysTrades.Count > 0)
+{
+    <Button Class="@(SelectedSector == null ? "btn btn-primary m-1":"btn btn-secondary m-1")" Clicked="()=>SelectedSector=null">All (@TodaysTrades.Count())</Button>
+
+    foreach (var item in TodaysTrades.Select(s => s.Equity.Sector).Distinct())
+    {
+        <Button Class="@(SelectedSector == item ? "btn btn-primary m-1":"btn btn-secondary m-1")" Clicked="()=>SelectedSector=item">@item (@TodaysTrades.Count(c => c.Equity.Sector == item))</Button>
+    }
+}
+
+@if (TodaysTrades.Count > 0)
+{
+    string red = "#ff0000";
+    string green = "#008000";
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Sector</th>
+                    <th>Buy Rate</th>
+                    <th>LTP</th>
+                    <th>1D</th>
+                    <th>1W</th>
+                    <th>1M</th>
+                    <th>2M</th>
+                    <th>3M</th>
+                    <th>6M</th>
+                    <th>1Y</th>
+                    <th>RSI</th>
+                    <th>RSI Diff</th>
+                    <th>Groww Rank</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in TodaysTrades.Where(x => x.Equity.Sector == SelectedSector || SelectedSector == null))
+                {
+                    <tr>
+                        <td title="@row.Name">
+                            <a href="https://groww.in/stocks/@row.Equity.GrowwSearchId" target="_blank">@row.Code</a>
+                        </td>
+                        <td>@row.Equity.Sector</td>
+                        <td>@row.Close.ToCString()</td>
+                        <td>@row.Equity.LTP.ToCString()</td>
+                        <td title="Last session change">
+                            <span class="bg-tags" style="color:@(row.Equity.DayChangePer > 0 ? green : red);
+                                    background-color:@(row.Equity.DayChangePer > 0 ? green.HexToRGBA() : red.HexToRGBA())">
+                                @row.Equity.DayChangePer.ToPString()
+                            </span>
+                        </td>
+                        <td title="Last 1W sessions change">
+                            <span class="bg-tags" style="color:@(row.Equity.EquityStockCalculation?.PerChange_1W > 0 ? green : red);
+                                    background-color:@(row.Equity.EquityStockCalculation?.PerChange_1W > 0 ? green.HexToRGBA() : red.HexToRGBA())">
+                                @row.Equity.EquityStockCalculation?.PerChange_1W.ToPString()
+                            </span>
+                        </td>
+                        <td title="Last 1M sessions change">
+                            <span class="bg-tags" style="color:@(row.Equity.EquityStockCalculation?.PerChange_1M > 0 ? green : red);
+                                    background-color:@(row.Equity.EquityStockCalculation?.PerChange_1M > 0 ? green.HexToRGBA() : red.HexToRGBA())">
+                                @row.Equity.EquityStockCalculation?.PerChange_1M.ToPString()
+                            </span>
+                        </td>
+                        <td title="Last 3M sessions change">
+                            <span class="bg-tags" style="color:@(row.Equity.EquityStockCalculation?.PerChange_3M > 0 ? green : red);
+                                    background-color:@(row.Equity.EquityStockCalculation?.PerChange_3M > 0 ? green.HexToRGBA() : red.HexToRGBA())">
+                                @row.Equity.EquityStockCalculation?.PerChange_3M.ToPString()
+                            </span>
+                        </td>
+                        <td title="Last 6M sessions change">
+                            <span class="bg-tags" style="color:@(row.Equity.EquityStockCalculation?.PerChange_6M > 0 ? green : red);
+                                    background-color:@(row.Equity.EquityStockCalculation?.PerChange_6M > 0 ? green.HexToRGBA() : red.HexToRGBA())">
+                                @row.Equity.EquityStockCalculation?.PerChange_6M.ToPString()
+                            </span>
+                        </td>
+                        <td title="Last 1Y sessions change">
+                            <span class="bg-tags" style="color:@(row.Equity.EquityStockCalculation?.PerChange_1Y > 0 ? green : red);
+                                    background-color:@(row.Equity.EquityStockCalculation?.PerChange_1Y > 0 ? green.HexToRGBA() : red.HexToRGBA())">
+                                @row.Equity.EquityStockCalculation?.PerChange_1Y.ToPString()
+                            </span>
+                        </td>
+                        <td title="Last 3Y sessions change">
+                            <span class="bg-tags" style="color:@(row.Equity.EquityStockCalculation?.PerChange_3Y > 0 ? green : red);
+                                    background-color:@(row.Equity.EquityStockCalculation?.PerChange_3Y > 0 ? green.HexToRGBA() : red.HexToRGBA())">
+                                @row.Equity.EquityStockCalculation?.PerChange_3Y.ToPString()
+                            </span>
+                        </td>
+                        <td>@row.RSI</td>
+                        <td>@row.RSI14EMADiff</td>
+                        <td>@row.Equity.GrowwRank</td>
+                        <td>
+                            <Button Clicked="()=>BuyTrade(row)" Class="btn btn-success me-2">A Buy</Button>
+
+                            @if (row.BuyAlready)
+                            {
+                                <Button Class="btn btn-warning">V Bought</Button>
+                            }
+                            else
+                            {
+                                <Button Clicked="()=>BuyVirtualTrade(row)" Class="btn btn-success">V Buy</Button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (BuyStock is not null)
+{
+    <div class="popup form">
+        <div class="heading">
+            <div class="text">Buy trade</div>
+            <div class="closeX" @onclick="()=>{BuyStock = null;}">X</div>
+        </div>
+        <TradeBookOrderForm BuyStrategy="@($"{Stratergy}")" StockCode="@BuyStock.Code" EquityId="@BuyStock.EquityId" CloseForm="()=>{BuyStock=null;}" 
+            BuyRate="BuyStock.Close" TargetPerc="5"/>
+
+    </div>
+    <div class="overlay"></div>
+}

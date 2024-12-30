@@ -1,0 +1,65 @@
+﻿@attribute [Authorize]
+@using Blazorise;
+@using Blazorise.Components;
+@using ShareMarket.Core.Entities.Equities
+@using ShareMarket.Core.Interfaces.Services.Groww
+
+@inherits ComponentBaseClass
+
+@inject IRepositoryConductor<EquityStock> EquityRepo;
+@inject IGrowwService GrowwService;
+
+<Loader IsLoading="IsLoading" />
+@if (EquityModel is not null)
+{
+    <Validations Mode="ValidationMode.Auto" @ref="EquityModelValidation" Model="@EquityModel" ValidateOnLoad=false HandlerType="typeof(FluentValidationHandler)">
+        <div class="row">
+            <div class="col-md-3 col-6">
+                <label class="required">Equity Name</label>
+                <Validation>
+                    <TextEdit @bind-Text="@EquityModel.Name" Placeholder="Stock Name">
+                        <Feedback>
+                            <ValidationError />
+                        </Feedback>
+                    </TextEdit>
+                </Validation>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="required">Equity Code</label>
+                <Validation>
+                    <TextEdit @bind-Text="@EquityModel.Code" Placeholder="Stock Name">
+                        <Feedback>
+                            <ValidationError />
+                        </Feedback>
+                    </TextEdit>
+                </Validation>
+            </div>
+
+            <div class="col-md-3 col-6">
+                <label class="required">Sector</label>
+                <Validation>
+                    <TextEdit @bind-Text="@EquityModel.Sector" Placeholder="Stock Name">
+                        <Feedback>
+                            <ValidationError />
+                        </Feedback>
+                    </TextEdit>
+                </Validation>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="required">Industry</label>
+                <Validation>
+                    <TextEdit @bind-Text="@EquityModel.Industry" Placeholder="Stock Name">
+                        <Feedback>
+                            <ValidationError />
+                        </Feedback>
+                    </TextEdit>
+                </Validation>
+            </div>
+
+            <div class="col-md-2 col-6 button-pt button-mt">
+                <Button Class="btn me-3 btn-success" Clicked="CreateEntity">Add Trade</Button>
+            </div>
+        </div>
+    </Validations>
+
+}

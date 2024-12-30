@@ -1,0 +1,243 @@
+﻿@page "/trading/virtual-trade";
+@inherits ComponentBaseClass
+
+@using Blazorise.Components;
+@using Blazorise;
+@using ShareMarket.Core.Entities.Equities
+@using ShareMarket.Core.Entities.Tradings
+@using ShareMarket.Core.Services;
+@using ShareMarket.Core.Interfaces.Services.Groww
+
+@attribute [Authorize]
+@inject NavigationManager NavManager
+@inject IJSRuntime JsRuntime
+@inject IRepositoryConductor<EquityPriceHistory> HistoryRepo;
+@inject IRepositoryConductor<VirtualTrade> TradeRepo;
+@inject IGrowwService GrowwService;
+
+
+@code {
+    protected const string RSI35 = "#433878";
+    protected const string RSI35EMA = "#629584";
+
+
+    public List<VirtualTrade> Trades { get; set; } = [];
+    DateOnly dateOnly = new DateOnly(2024, 10, 1);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var start = new DateOnly(2024, 10, 1);
+
+        Trades = await TradeRepo.FindAll(x => x.DeletedOn == null && x.SellDate == null, includeProperties: "Equity", orderBy: o => o.OrderBy("SellDate").ThenBy("BuyDate"))
+                                     .ResultObject.ToListAsync();
+        if (Trades.Count > 0)
+            dateOnly = Trades.Max(m => m.BuyDate).AddDays(1);
+        await base.OnInitializedAsync();
+    }
+
+    protected async Task LTPUpdate()
+    {
+        IsLoading = true;
+        bool refeshByHistory = true;
+        Trades = await TradeRepo.FindAll(x => x.DeletedOn == null, includeProperties: "Equity", orderBy: o => o.OrderBy("SellDate").ThenBy("BuyDate"))
+                                     .ResultObject.ToListAsync();
+        var syncResult = await GrowwService.GetScrips(CancellationToken.None);
+        if (syncResult.HasErrors)
+        {
+            await NotificationService.Error($"Error : {syncResult.GetErrors()}", "Error");
+            IsLoading = false;
+            return;
+        }
+        if (refeshByHistory)
+        {
+            foreach (var item in Trades.Where(x => x.SellDate is null))
+            {
+                var nextDayprice = await HistoryRepo.FindAll(e => e.Code == item.Code && e.Date == dateOnly).ResultObject.FirstOrDefaultAsync();
+                if (nextDayprice != null)
+                {
+                    item.LTP = nextDayprice.Close;
+                    item.Equity.DayHigh = nextDayprice.High;
+                }
+            }
+        }
+        else
+        {
+            var scrpis = syncResult.ResultObject;
+            foreach (var item in Trades.Where(x => x.SellDate is null))
+            {
+                var stock = scrpis.Find(x => x.NseScriptCode == item.Code || x.BseScriptCode == item.Code);
+                if (stock != null)
+                {
+                    item.LTP = stock.LivePriceDto.Ltp;
+                    item.Equity.DayHigh = stock.LivePriceDto.High;
+                    item.Equity.DayChangePer = stock.LivePriceDto.DayChangePerc;
+                }
+            }
+        }
+        IsLoading = false;
+        StateHasChanged();
+        await NotificationService.Success($"Success : Trade LTP updated successfully", "Success");
+    }
+
+    protected async Task SellTrade(VirtualTrade trade)
+    {
+        IsLoading = true;
+        var tradeTaken = await TradeRepo.FindAll(x => x.Id == trade.Id && x.SellDate == null).ResultObject.FirstOrDefaultAsync();
+        if (tradeTaken is null)
+        {
+            await NotificationService.Error($"Error : Trade not found", "Error");
+            IsLoading = false;
+            return;
+        }
+
+        trade.SellAction = SellAction.Target;
+        trade.SellRate = trade.Target;
+        trade.SellDate = dateOnly;
+        trade.ReleasedPL = (trade.Target - trade.BuyRate) * trade.Quantity;
+        trade.SellValue = trade.SellRate * trade.Quantity;
+
+        if (trade.SellDate.HasValue)
+            trade.Holding = trade.SellDate.Value.DayNumber - trade.BuyDate.DayNumber;
+
+        var tradeResult = await TradeRepo.UpdateAsync(trade, UserId);
+        if (tradeResult.HasErrors)
+        {
+            await NotificationService.Error($"Error : {tradeResult.GetErrors()}", "Error");
+            IsLoading = false;
+            return;
+        }
+        await NotificationService.Success($"Success : Trade sold successfully", "Success");
+        IsLoading = false;
+    }
+
+
+    protected string RowColor(VirtualTrade trade)
+    {
+        var currentState = ((trade.LTP - trade.BuyRate) / trade.BuyRate * 100).ToFixed();
+        if (currentState > 0) return "green";
+        if (currentState < 0) return "red";
+        // if (currentState < 0) return "#edaaaa"; // Light red
+        // if (currentState > 0) return "#b9e4b9"; //Light Green
+        return "gray";
+    }
+}
+
+
+<PageTitle>Virtual Trade</PageTitle>
+<Loader IsLoading="IsLoading" />
+
+<div class="row1">
+    @if (Trades.Count > 0)
+    {
+        <Button Class="btn btn-secondary me-1" Clicked="LTPUpdate">All (@Trades.Count())</Button>
+
+        foreach (var item in Trades.Select(s => s.Equity.Sector).Distinct())
+        {
+            <Button Class="btn btn-secondary me-1" Clicked="LTPUpdate">@item (@Trades.Count(c => c.Equity.Sector == item))</Button>
+        }
+    }
+</div>
+<div class="row">
+    <div class="col-3 text-start">
+        <Button Class="btn btn-warning">
+            Used Cap : <strong>@Trades.Where(x => x.SellDate is null).Sum(s => s.BuyValue).ToCString(0)</strong>
+        </Button>
+    </div>
+    <div class="col-3 text-center">
+        <Button Class="btn btn-success">
+            Released PL : <strong> @Trades.Where(x => x.SellDate is not null).Sum(s => s.ReleasedPL).ToCString(0)</strong>
+        </Button>
+    </div>
+    <div class="col-3 text-center">
+        <Button Class="btn btn-danger">
+            Un Released PL : <strong> @Trades.Where(x => x.SellDate is null).Sum(s => (s.LTP - s.BuyRate) * s.Quantity).ToCString(0)</strong>
+        </Button>
+    </div>
+    <div class="col-2 text-end">
+        <DateEdit InputMode="DateInputMode.Date" Date="dateOnly" TValue="DateOnly" DateChanged="async(DateOnly date)=>{dateOnly = date; await LTPUpdate();}" />
+    </div>
+    <div class="col-1 text-end">
+        <Button Class="btn btn-warning" Clicked="LTPUpdate">Refresh LTP</Button>
+    </div>
+</div>
+@if (Trades.Count > 0)
+{
+    string red = "#ff0000";
+    string green = "#008000";
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>SR</th>
+                    <th>Stratergy</th>
+                    <th>Code</th>
+                    <th>Sector</th>
+                    <th>Buy Rate</th>
+                    <th>Buy Date</th>
+                    <th>Sell Date</th>
+                    <th>LTP</th>
+                    <th>Day C</th>
+                    <th>Target</th>
+                    <th>Qty</th>
+                    <th>Buy Value</th>
+                    <th>SL</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Trades.Count; i++)
+                {
+                    var row = Trades[i];
+                    <tr style="color:@RowColor(row)">
+                        <td>@(i + 1)</td>
+                        <td>
+                            <span class="bg-tags" style="color:@(row.Stratergy == BuyStratergy.RSI14EMADiffLess1 ? RSI35 : RSI35EMA);
+                                    background-color:@(row.Stratergy == BuyStratergy.RSI14EMADiffLess1 ? RSI35.HexToRGBA() : RSI35EMA.HexToRGBA());
+                                    width:fit-content">
+                                @row.Stratergy
+                            </span>
+                        </td>
+
+                        <td title="@row.Name">
+                            <a href="https://www.nseindia.com/get-quotes/equity?symbol=@row.Code" target="_blank">
+                                @row.Code
+                            </a>
+                        </td>
+                        <td>@row.Equity.Sector</td>
+                        <td>@row.BuyRate.ToCString()</td>
+                        <td>@row.BuyDate.ToString("dd-MMM-yy")</td>
+                        <td>@row.SellDate?.ToString("dd-MMM-yy")</td>
+                        <td>@row.Equity.LTP.ToCString()</td>
+                        <td>
+                            <span class="bg-tags" style="color:@(row.Equity.DayChangePer > 0 ? green : red);
+                        background-color:@(row.Equity.DayChangePer > 0 ? green.HexToRGBA() : red.HexToRGBA())">
+                                @row.Equity.DayChangePer.ToFixed()
+                            </span>
+                        </td>
+                        <td>@row.Target.ToCString()</td>
+                        <td>@row.Quantity</td>
+                        <td>@row.BuyValue.ToCString()</td>
+                        <td>@row.StopLoss.ToCString()</td>
+                        <td>@(((row.Equity.LTP - row.BuyRate) / row.BuyRate * 100).ToFixed())</td>
+                        <td>
+                            @if (row.SellDate.HasValue)
+                            {
+                                <Button Class="btn btn-primary">Sold</Button>
+                            }
+                            else if (row.Equity.DayHigh >= row.Target)
+                            {
+                                <Button Clicked="()=>SellTrade(row)" Class="btn btn-success">Sell</Button>
+                            }
+                            else
+                            {
+                                <Button onclick="window.alert('Target not achived');" Class="btn btn-warning">Hold</Button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
